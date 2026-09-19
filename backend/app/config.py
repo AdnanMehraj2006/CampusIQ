@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
     frontend_url: str = "http://localhost:5173"
     backend_url: str = "http://localhost:8000"
+    port: int = 8000
 
     # ---- Database ----
     database_url: str = "sqlite:///./campusiq.db"
@@ -70,7 +71,7 @@ class Settings(BaseSettings):
     ai_provider: str = "demo"  # openai | demo
 
     # ---- CORS ----
-    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173,https://localhost:5173"
 
     # ---- Derived (computed in properties) ----
     @property

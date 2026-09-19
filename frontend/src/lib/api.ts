@@ -37,7 +37,7 @@ import {
   NotificationSummary,
 } from '@/types'
 
-const BASE_URL = '/api/v1'
+const BASE_URL = `${import.meta.env.VITE_API_URL || ""}/api/v1`
 
 class ApiClient {
   private async request<T>(
@@ -940,3 +940,4 @@ export function getApiErrorMessage(error: unknown, fallback = 'Something went wr
 }
 
 export const api = new ApiClient()
+

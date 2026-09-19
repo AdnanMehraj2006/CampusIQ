@@ -1,4 +1,4 @@
-# CampusIQ
+﻿# CampusIQ
 
 Smart College Management & Analytics Platform
 
@@ -156,6 +156,53 @@ CampusIQ/
 - Use HTTPS in production
 - Demo passwords should be changed in production
 
+
+## Deploying to Render
+
+### Prerequisites
+- GitHub account
+- Render account (free tier available)
+
+### Database Setup
+1. In Render Dashboard, create a new PostgreSQL database
+2. Copy the DATABASE_URL connection string
+
+### Backend Deployment
+1. Create a new Web Service
+2. Connect your GitHub repository
+3. Settings:
+   - Build Command: pip install -r requirements.txt
+   - Start Command: uvicorn app.main:app --host 0.0.0.0 --port 
+   - Environment Variables:
+     - APP_ENV=production
+     - DEBUG=false
+     - DATABASE_URL (from database)
+     - JWT_SECRET (generate: python -c "import secrets; print(secrets.token_hex(32))")
+     - JWT_REFRESH_SECRET (generate same as above)
+     - CORS_ORIGINS=https://your-backend.onrender.com
+     - PORT=8000
+4. Deploy
+
+### Frontend Deployment
+1. Create a new Static Site
+2. Connect your GitHub repository
+3. Settings:
+   - Build Command: 
+pm install && VITE_API_URL=https://your-backend.onrender.com npm run build
+   - Publish Directory: dist
+   - Environment Variables:
+     - NODE_VERSION=18
+4. Deploy
+
+### After Deployment
+1. Update CORS_ORIGINS with your frontend URL
+2. Run migrations: lembic upgrade head (via Render shell or CI)
+3. Seed demo data: python seed.py
+4. Access:
+   - Frontend: https://your-frontend.onrender.com
+   - Backend API: https://your-backend.onrender.com/api/v1
+   - API Docs: https://your-backend.onrender.com/docs
 ## License
 
 MIT License
+

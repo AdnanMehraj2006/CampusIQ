@@ -1,0 +1,44 @@
+services:
+  # Backend FastAPI service
+  - type: web
+    name: campusiq-backend
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    preDeployCommand: alembic upgrade head
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: campusiq-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: https://campusiq.onrender.com
+
+  # Frontend Static Site
+  - type: web
+    name: campusiq-frontend
+    env: static
+    plan: free
+    buildCommand: npm install && VITE_API_URL=https://campusiq-backend.onrender.com npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: NODE_VERSION
+        value: 18
+    routes:
+      - source: /*
+        destination: /index.html
+        type: rewrite
+
+databases:
+  - name: campusiq-db
+    databaseName: campusiq
+    user: campusiq
