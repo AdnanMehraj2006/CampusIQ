@@ -1,4 +1,4 @@
-﻿# CampusIQ
+# CampusIQ
 
 Smart College Management & Analytics Platform
 
@@ -135,18 +135,18 @@ Access:
 
 ```
 CampusIQ/
-├── backend/
-│   ├── app/           # Application code
-│   ├── tests/         # Test suite
-│   ├── alembic/       # Database migrations
-│   └── requirements.txt
-├── frontend/
-│   ├── src/           # React source code
-│   └── package.json
-├── .env.example
-├── .gitignore
-├── docker-compose.yml
-└── README.md
++-- backend/
+�   +-- app/           # Application code
+�   +-- tests/         # Test suite
+�   +-- alembic/       # Database migrations
+�   +-- requirements.txt
++-- frontend/
+�   +-- src/           # React source code
+�   +-- package.json
++-- .env.example
++-- .gitignore
++-- docker-compose.yml
++-- README.md
 ```
 
 ## Security Notes
@@ -157,52 +157,46 @@ CampusIQ/
 - Demo passwords should be changed in production
 
 
-## Deploying to Render
+
+## Deploying to Railway
 
 ### Prerequisites
 - GitHub account
-- Render account (free tier available)
+- Railway account
 
 ### Database Setup
-1. In Render Dashboard, create a new PostgreSQL database
+1. In Railway, create a new PostgreSQL service
 2. Copy the DATABASE_URL connection string
 
 ### Backend Deployment
-1. Create a new Web Service
-2. Connect your GitHub repository
-3. Settings:
-   - Build Command: pip install -r requirements.txt
-   - Start Command: uvicorn app.main:app --host 0.0.0.0 --port 
-   - Environment Variables:
-     - APP_ENV=production
-     - DEBUG=false
-     - DATABASE_URL (from database)
-     - JWT_SECRET (generate: python -c "import secrets; print(secrets.token_hex(32))")
-     - JWT_REFRESH_SECRET (generate same as above)
-     - CORS_ORIGINS=https://your-backend.onrender.com
-     - PORT=8000
-4. Deploy
+1. Create a new Railway service from your GitHub repository
+2. Set the Root Directory to ackend
+3. Build Command: pip install -r requirements.txt
+4. Start Command: uvicorn app.main:app --host 0.0.0.0 --port 
+5. Environment Variables:
+   - APP_ENV=production
+   - DEBUG=false
+   - DATABASE_URL (from Railway PostgreSQL)
+   - JWT_SECRET (generate: python -c "import secrets; print(secrets.token_hex(32))")
+   - JWT_REFRESH_SECRET (generate same as above)
+   - CORS_ORIGINS (add your frontend Railway domain)
 
 ### Frontend Deployment
-1. Create a new Static Site
-2. Connect your GitHub repository
-3. Settings:
-   - Build Command: 
-pm install && VITE_API_URL=https://your-backend.onrender.com npm run build
-   - Publish Directory: dist
-   - Environment Variables:
-     - NODE_VERSION=18
-4. Deploy
+1. Create a new Railway Static Site service from your GitHub repository
+2. Set the Root Directory to rontend
+3. Build Command: 
+pm install && VITE_API_URL=https://your-backend.railway.app npm run build
+4. Publish Directory: dist
+5. Environment Variables:
+   - NODE_VERSION=18
+   - VITE_API_URL (set to your Railway backend domain)
 
 ### After Deployment
-1. Update CORS_ORIGINS with your frontend URL
-2. Run migrations: lembic upgrade head (via Render shell or CI)
-3. Seed demo data: python seed.py
+1. Run migrations: lembic upgrade head (via Railway shell)
+2. Seed demo data: python seed.py (optional)
+3. Update CORS_ORIGINS with your frontend Railway domain
 4. Access:
-   - Frontend: https://your-frontend.onrender.com
-   - Backend API: https://your-backend.onrender.com/api/v1
-   - API Docs: https://your-backend.onrender.com/docs
-## License
-
-MIT License
+   - Frontend: https://your-frontend.railway.app
+   - Backend API: https://your-backend.railway.app/api/v1
+   - API Docs: https://your-backend.railway.app/docs
 

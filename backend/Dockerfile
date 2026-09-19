@@ -18,5 +18,5 @@ COPY . .
 
 EXPOSE 8000
 
-# Run migrations, seed (idempotent), then start uvicorn
-CMD ["sh", "-c", "alembic upgrade head && python seed.py --skip-if-populated && uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers"]
+# Start uvicorn: use $PORT if set (Railway), otherwise default to 8000 (local)
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
