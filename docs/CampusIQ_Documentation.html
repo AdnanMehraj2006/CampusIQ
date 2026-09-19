@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CampusIQ Documentation</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; background: #f5f5f5; }
+        .container { display: flex; min-height: 100vh; }
+        /* Sidebar */
+        .sidebar { width: 280px; background: #1a1a2e; color: #fff; position: fixed; height: 100vh; overflow-y: auto; padding: 20px; }
+        .sidebar h1 { font-size: 1.3rem; margin-bottom: 20px; color: #4fc3f7; }
+        .sidebar nav { margin-top: 10px; }
+        .sidebar nav a { color: #b0b0b0; text-decoration: none; display: block; padding: 8px 0; transition: color 0.2s; }
+        .sidebar nav a:hover { color: #4fc3f7; }
+        .sidebar nav a.active { color: #4fc3f7; font-weight: 600; }
+        /* Main content */
+        .content { flex: 1; margin-left: 280px; background: #fff; padding: 40px; }
+        .content h1 { font-size: 2.2rem; color: #1a1a2e; margin-bottom: 10px; }
+        .content h2 { font-size: 1.6rem; color: #1a1a2e; margin: 30px 0 15px; padding-bottom: 10px; border-bottom: 2px solid #e0e0e0; }
+        .content h3 { font-size: 1.3rem; color: #2c3e50; margin: 25px 0 10px; }
+        .content p { margin: 15px 0; }
+        .content ul, .content ol { margin: 15px 0 15px 30px; }
+        .content li { margin: 5px 0; }
+        .content code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-family: 'Consolas', 'Monaco', monospace; font-size: 0.9em; }
+        .content pre { background: #2d2d2d; color: #f8f8f2; padding: 20px; border-radius: 5px; overflow-x: auto; margin: 15px 0; }
+        .content pre code { background: none; padding: 0; }
+        .content table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .content th, .content td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        .content th { background: #1a1a2e; color: #fff; }
+        .content tr:nth-child(even) { background: #f9f9f9; }
+        .content tr:hover { background: #f0f0f0; }
+        .content blockquote { border-left: 4px solid #4fc3f7; padding-left: 20px; margin: 20px 0; color: #666; font-style: italic; }
+        .content .toc { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 5px; padding: 20px; margin: 20px 0; }
+        .content .toc h4 { margin-bottom: 15px; }
+        .content .toc ul { margin: 0; list-style: none; }
+        .content .toc li { margin: 8px 0; }
+        /* Responsive */
+        @media (max-width: 900px) {
+            .sidebar { width: 100%; height: auto; position: relative; padding: 15px; }
+            .content { margin-left: 0; padding: 20px; }
+            .content h1 { font-size: 1.8rem; }
+        }
+        /* Print styles */
+        @media print {
+            .sidebar { display: none; }
+            .content { margin-left: 0; padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <aside class="sidebar">
+            <h1>CampusIQ Documentation</h1>
+            <nav>
+                <a href="#1-executive-summary">1. Executive Summary</a>
+                <a href="#2-project-objectives">2. Project Objectives</a>
+                <a href="#3-user-roles-and-rbac">3. User Roles and RBAC</a>
+                <a href="#4-system-architecture">4. System Architecture</a>
+                <a href="#5-technology-stack">5. Technology Stack</a>
+                <a href="#6-repository-structure">6. Repository Structure</a>
+                <a href="#7-authentication-and-security">7. Authentication and Security</a>
+                <a href="#8-module-documentation">8. Module Documentation</a>
+                <a href="#9-api-documentation">9. API Documentation</a>
+                <a href="#10-database-design">10. Database Design</a>
+                <a href="#11-frontend-architecture">11. Frontend Architecture</a>
+                <a href="#12-backend-architecture">12. Backend Architecture</a>
+                <a href="#13-docker--deployment">13. Docker & Deployment</a>
+                <a href="#14-installation--setup">14. Installation & Setup</a>
+                <a href="#15-testing--quality-assurance">15. Testing & Quality Assurance</a>
+                <a href="#16-demo-accounts">16. Demo Accounts</a>
+                <a href="#17-screenshots">17. Screenshots</a>
+                <a href="#18-known-limitations">18. Known Limitations</a>
+                <a href="#19-future-scope">19. Future Scope</a>
+                <a href="#20-license">20. License</a>
+                <a href="#21-changelog">21. Changelog</a>
+            </nav>
+        </aside>
+        <main class="content">
+            <h1>CampusIQ Documentation</h1>
+            <p><strong>Smart College Management & Analytics Platform</strong></p>
+
+            <h2 id="1-executive-summary">1. Executive Summary</h2>
+            <p>CampusIQ is a comprehensive web-based Smart College Management & Analytics Platform designed to streamline academic operations, enhance student-faculty engagement, and provide data-driven insights for institutional decision-making.</p>
+            <h3>Problem Statement</h3>
+            <p>Educational institutions face challenges in managing student attendance across multiple courses, tracking assignment submissions and grading workflows, generating performance analytics and reports, coordinating department-level academic operations, and maintaining secure access control across different user roles.</p>
+            <h3>Solution</h3>
+            <p>CampusIQ provides a unified platform that addresses these challenges through real-time attendance tracking with predictive analytics, comprehensive assignment management system, automated grade recording and performance tracking, role-based dashboards for different user types, and exportable reports in CSV and PDF formats.</p>
+
+            <h2 id="2-project-objectives">2. Project Objectives</h2>
+            <table>
+                <tr><th>Objective</th><th>Implementation</th></tr>
+                <tr><td>Streamline Attendance Management</td><td>Web-based attendance tracking with real-time updates and predictive analytics</td></tr>
+                <tr><td>Centralize Assignment Workflows</td><td>End-to-end assignment lifecycle from creation to grading</td></tr>
+                <tr><td>Enable Data-Driven Decisions</td><td>Comprehensive reports and analytics for all stakeholders</td></tr>
+                <tr><td>Ensure Secure Access Control</td><td>Role-based access control (RBAC) with 5 distinct user roles</td></tr>
+                <tr><td>Provide Department-Level Oversight</td><td>HOD-specific dashboards and analytics</td></tr>
+                <tr><td>Support Academic Planning</td><td>Timetable management and scheduling</td></tr>
+                <tr><td>Foster Communication</td><td>Announcement system with priority handling</td></tr>
+                <tr><td>Enable Project Management</td><td>Group project tracking with milestones</td></tr>
+            </table>
+
+            <h2 id="3-user-roles-and-rbac">3. User Roles and RBAC</h2>
+            <p>CampusIQ implements a 5-role system with granular permissions.</p>
+            <table>
+                <tr><th>Role</th><th>Purpose</th><th>Module Access</th></tr>
+                <tr><td><strong>ADMIN</strong></td><td>Full system administration</td><td>All modules, user management, audit logs, system settings</td></tr>
+                <tr><td><strong>HOD</strong></td><td>Department leadership</td><td>Department analytics, student/faculty management, reports</td></tr>
+                <tr><td><strong>FACULTY</strong></td><td>Course instructors</td><td>Attendance marking, assignment management, grading</td></tr>
+                <tr><td><strong>CR</strong></td><td>Class representatives</td><td>Class attendance view, feedback, requests</td></tr>
+                <tr><td><strong>STUDENT</strong></td><td>Students</td><td>Personal attendance, assignments, marks</td></tr>
+            </table>
+
+            <h2 id="4-system-architecture">4. System Architecture</h2>
+            <p>CampusIQ follows a layered architecture with clear separation between frontend, backend, and database layers.</p>
+
+            <h2 id="5-technology-stack">5. Technology Stack</h2>
+            <h3>Frontend</h3>
+            <table>
+                <tr><th>Technology</th><th>Version</th><th>Purpose</th></tr>
+                <tr><td>React</td><td>18.x</td><td>UI framework</td></tr>
+                <tr><td>TypeScript</td><td>5.x</td><td>Type safety</td></tr>
+                <tr><td>Vite</td><td>5.x</td><td>Build tool</td></tr>
+                <tr><td>Tailwind CSS</td><td>3.x</td><td>Styling</td></tr>
+                <tr><td>React Router</td><td>6.x</td><td>Routing</td></tr>
+                <tr><td>TanStack Query</td><td>5.x</td><td>Data fetching</td></tr>
+            </table>
+            <h3>Backend</h3>
+            <table>
+                <tr><th>Technology</th><th>Version</th><th>Purpose</th></tr>
+                <tr><td>FastAPI</td><td>0.141.1</td><td>API framework</td></tr>
+                <tr><td>Python</td><td>3.12+</td><td>Runtime</td></tr>
+                <tr><td>SQLAlchemy</td><td>2.0.54</td><td>ORM</td></tr>
+                <tr><td>Alembic</td><td>1.20.0</td><td>Migrations</td></tr>
+                <tr><td>PyJWT</td><td>2.14.0</td><td>JWT tokens</td></tr>
+            </table>
+
+            <h2 id="6-repository-structure">6. Repository Structure</h2>
+            <pre><code>CampusIQ/
+├── backend/                      # FastAPI backend
+│   ├── app/
+│   │   ├── api/v1/               # API endpoints
+│   │   ├── core/                 # Config, security, deps
+│   │   ├── models/               # SQLAlchemy models
+│   │   └── services/             # Business logic
+│   ├── tests/                    # Test suite
+│   ├── alembic/                  # Database migrations
+│   └── requirements.txt
+├── frontend/                     # React frontend
+│   ├── src/
+│   │   ├── components/           # Reusable components
+│   │   ├── pages/                # Page components
+│   │   └── lib/                  # API, auth utilities
+│   └── package.json
+├── docs/                         # Documentation
+├── .gitignore
+├── LICENSE
+├── README.md
+└── docker-compose.yml
+</code></pre>
+
+            <h2 id="7-authentication-and-security">7. Authentication and Security</h2>
+            <p>CampusIQ uses JWT-based authentication with role-based access control enforced on every protected endpoint.</p>
+            <ul>
+                <li><strong>Authentication:</strong> JWT (Access + Refresh tokens)</li>
+                <li><strong>Password Hashing:</strong> bcrypt (primary), argon2 (optional)</li>
+                <li><strong>Token Expiry:</strong> 30 min access, 7 day refresh</li>
+                <li><strong>Authorization:</strong> RBAC enforced on every endpoint with resource-level scoping</li>
+            </ul>
+
+            <h2 id="8-module-documentation">8. Module Documentation</h2>
+            <table>
+                <tr><th>Module</th><th>Purpose</th><th>Primary Users</th></tr>
+                <tr><td>Attendance</td><td>Track and analyze attendance</td><td>Faculty, HOD, Students</td></tr>
+                <tr><td>Assignments</td><td>End-to-end assignment management</td><td>Faculty, Students</td></tr>
+                <tr><td>Marks</td><td>Grade tracking and performance analytics</td><td>Faculty, Students</td></tr>
+                <tr><td>Projects</td><td>Student project management</td><td>Faculty, Students</td></tr>
+                <tr><td>Reports</td><td>Generate CSV/PDF analytics reports</td><td>HOD, Faculty, Admin</td></tr>
+                <tr><td>Audit Logs</td><td>Track security-sensitive actions</td><td>Admin</td></tr>
+            </table>
+
+            <h2 id="9-api-documentation">9. API Documentation</h2>
+            <p>Base URL: <code>/api/v1</code> | Interactive docs at <code>/docs</code></p>
+            <table>
+                <tr><th>Method</th><th>Endpoint</th><th>Purpose</th><th>Access</th></tr>
+                <tr><td>POST</td><td>/auth/login</td><td>Authenticate user</td><td>Public</td></tr>
+                <tr><td>GET</td><td>/attendance</td><td>List attendance records</td><td>Role-based</td></tr>
+                <tr><td>POST</td><td>/assignments</td><td>Create assignment</td><td>Faculty</td></tr>
+                <tr><td>GET</td><td>/reports/attendance</td><td>Generate attendance report</td><td>Auth</td></tr>
+                <tr><td>GET</td><td>/audit-logs</td><td>List audit entries</td><td>Admin</td></tr>
+            </table>
+
+            <h2 id="10-database-design">10. Database Design</h2>
+            <h3>Core Entities</h3>
+            <ul>
+                <li><strong>User:</strong> id, email, role, status</li>
+                <li><strong>Student:</strong> user_id, enrollment_number, department_id, semester_id, section</li>
+                <li><strong>Faculty:</strong> user_id, department_id, designation</li>
+                <li><strong>Department:</strong> name, code</li>
+                <li><strong>Assignment:</strong> title, subject_id, faculty_id, deadline, max_marks</li>
+                <li><strong>Attendance:</strong> student_id, date, status</li>
+            </ul>
+            <p><strong>Database Support:</strong> SQLite (development), PostgreSQL (production)</p>
+
+            <h2 id="11-frontend-architecture">11. Frontend Architecture</h2>
+            <p>React 18 with TypeScript using component-based architecture, role-based routing, and React Query for data fetching. Navigation and routes are protected based on user role.</p>
+
+            <h2 id="12-backend-architecture">12. Backend Architecture</h2>
+            <p>FastAPI with structured layers: API routes → Dependencies/RBAC → Service layer → Database. SQLAlchemy ORM with Alembic migrations.</p>
+
+            <h2 id="13-docker--deployment">13. Docker & Deployment</h2>
+            <table>
+                <tr><th>Service</th><th>Image</th><th>Port</th></tr>
+                <tr><td>db</td><td>postgres:16-alpine</td><td>5432</td></tr>
+                <tr><td>backend</td><td>CampusIQ backend</td><td>8000</td></tr>
+                <tr><td>frontend</td><td>CampusIQ frontend</td><td>5173</td></tr>
+            </table>
+
+            <h2 id="14-installation--setup">14. Installation & Setup</h2>
+            <h3>Backend</h3>
+            <pre><code>cd backend
+python -m venv .venv
+.venv\Scripts\activate  # Windows
+pip install -r requirements.txt
+alembic upgrade head
+python seed.py
+uvicorn app.main:app --reload
+</code></pre>
+            <h3>Frontend</h3>
+            <pre><code>cd frontend
+npm install
+npm run dev
+</code></pre>
+
+            <h2 id="15-testing--quality-assurance">15. Testing & Quality Assurance</h2>
+            <p><strong>Backend Tests:</strong> 114 tests passing</p>
+            <pre><code>pytest
+npm run build
+npx tsc --noEmit
+npm run lint
+</code></pre>
+
+            <h2 id="16-demo-accounts">16. Demo Accounts</h2>
+            <p><em>DEVELOPMENT / DEMO ONLY - Change passwords before production</em></p>
+            <table>
+                <tr><th>Email</th><th>Password</th><th>Role</th></tr>
+                <tr><td>admin@campusiq.edu</td><td>Admin@123</td><td>ADMIN</td></tr>
+                <tr><td>hod.cse@campusiq.edu</td><td>Hod@12345</td><td>HOD</td></tr>
+                <tr><td>faculty@campusiq.edu</td><td>Faculty@123</td><td>FACULTY</td></tr>
+                <tr><td>cr@campusiq.edu</td><td>Cr@12345</td><td>CR</td></tr>
+                <tr><td>adnan@campusiq.edu</td><td>Student@123</td><td>STUDENT</td></tr>
+            </table>
+
+            <h2 id="17-screenshots">17. Screenshots</h2>
+            <p>Screenshots of dashboards and key workflows can be added to this section.</p>
+
+            <h2 id="18-known-limitations">18. Known Limitations</h2>
+            <ul>
+                <li>Rate limiting defaults may need adjustment for high traffic</li>
+                <li>AI integration requires external provider; demo mode available</li>
+                <li>10MB file upload limit with restricted extensions</li>
+                <li>SQLite lacks production features; PostgreSQL recommended</li>
+            </ul>
+
+            <h2 id="19-future-scope">19. Future Scope</h2>
+            <ul>
+                <li>Real-time notifications via WebSocket</li>
+                <li>Multi-factor authentication</li>
+                <li>Mobile application</li>
+                <li>Integration with external SIS/LMS systems</li>
+                <li>Multi-language support</li>
+            </ul>
+
+            <h2 id="20-license">20. License</h2>
+            <p>This project is licensed under the MIT License.</p>
+
+            <h2 id="21-changelog">21. Changelog</h2>
+            <h3>CampusIQ v1.0.0 (Initial Release)</h3>
+            <ul>
+                <li>Complete 5-role RBAC system</li>
+                <li>Full attendance management</li>
+                <li>Assignment workflow</li>
+                <li>Marks and performance tracking</li>
+                <li>Report generation (CSV/PDF)</li>
+                <li>Audit logging</li>
+                <li>Docker deployment support</li>
+            </ul>
+        </main>
+    </div>
+</body>
+</html>
