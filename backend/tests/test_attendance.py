@@ -89,7 +89,7 @@ def test_faculty_can_mark_attendance(client, faculty_headers, db):
         json={
             "subject_id": sa.subject_id,
             "section": sa.section,
-            "date": "2026-09-19",
+            "date": "2026-09-30",
             "marks": [{"student_id": student_id, "status": "present"}],
         },
     )

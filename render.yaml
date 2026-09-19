@@ -2,7 +2,8 @@ services:
   # Backend FastAPI service
   - type: web
     name: campusiq-backend
-    env: python
+    runtime: python
+    rootDir: backend
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
@@ -20,23 +21,22 @@ services:
         generateValue: true
       - key: JWT_REFRESH_SECRET
         generateValue: true
-      - key: CORS_ORIGINS
-        value: https://campusiq.onrender.com
 
   # Frontend Static Site
   - type: web
     name: campusiq-frontend
-    env: static
+    runtime: static
+    rootDir: frontend
     plan: free
     buildCommand: npm install && VITE_API_URL=https://campusiq-backend.onrender.com npm run build
-    staticPublishPath: ./dist
+    staticPublishPath: dist
     envVars:
       - key: NODE_VERSION
         value: 18
     routes:
-      - source: /*
+      - type: rewrite
+        source: /*
         destination: /index.html
-        type: rewrite
 
 databases:
   - name: campusiq-db
