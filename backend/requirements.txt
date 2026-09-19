@@ -1,0 +1,35 @@
+# =============================================================================
+# CampusIQ backend dependencies
+# Pinned to the versions verified against Python 3.14 (all binary wheels).
+# =============================================================================
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+SQLAlchemy==2.0.54
+alembic==1.20.0
+pydantic==2.13.5
+pydantic-settings==2.15.0
+python-multipart==0.0.32
+
+# --- Auth ---
+bcrypt==5.0.0
+argon2-cffi==23.1.0
+PyJWT==2.14.0
+
+# --- PostgreSQL driver (only needed if DATABASE_URL points at PostgreSQL) ---
+psycopg[binary]==3.3.6
+
+# --- Rate limiting ---
+slowapi==0.1.10
+
+# --- AI assistant (OpenAI-compatible provider; demo mode works without it) ---
+openai==3.16.2
+
+# --- PDF report export (pure-Python) ---
+fpdf2==2.8.8
+
+# --- Utilities ---
+python-dateutil==2.9.0.post0
+
+# --- Testing ---
+pytest==9.1.1
+httpx==0.28.1

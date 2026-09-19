@@ -1,0 +1,60 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: campusiq-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-campusiq}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-campusiq}
+      POSTGRES_DB: ${POSTGRES_DB:-campusiq}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-campusiq}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: campusiq-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_ENV: production
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-campusiq}:${POSTGRES_PASSWORD:-campusiq}@db:5432/${POSTGRES_DB:-campusiq}
+      FRONTEND_URL: http://localhost:5173
+      CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+      # Override these in your real .env for production
+      JWT_SECRET: ${JWT_SECRET:-please-change-me}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-please-change-me-too}
+      AI_PROVIDER: ${AI_PROVIDER:-demo}
+      AI_API_KEY: ${AI_API_KEY:-}
+    ports:
+      - "8000:8000"
+    volumes:
+      - backend_uploads:/app/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: campusiq-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+    # Vite dev server proxies /api -> backend (see frontend/vite.config.ts)
+    links:
+      - backend
+
+volumes:
+  postgres_data:
+  backend_uploads:
