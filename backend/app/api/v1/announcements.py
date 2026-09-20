@@ -109,7 +109,18 @@ def update_announcement(
         raise NotFoundError("Announcement not found.")
     if current_user.role != "admin" and a.published_by != current_user.id:
         raise ForbiddenError("You can only edit announcements you published.")
-    for k, v in payload.model_dump(exclude_unset=True).items():
+    data = payload.model_dump(exclude_unset=True)
+    # Re-targeting is allowed, but must still respect the publisher's scope
+    # (e.g. a HOD may not retarget an announcement to another department).
+    if any(k in data for k in ("target_type", "department_id", "course_id", "semester_id", "section")):
+        announcement_service.validate_publish_scope(db, current_user, {
+            "target_type": data.get("target_type", a.target_type),
+            "department_id": data.get("department_id", a.department_id),
+            "course_id": data.get("course_id", a.course_id),
+            "semester_id": data.get("semester_id", a.semester_id),
+            "section": data.get("section", a.section),
+        })
+    for k, v in data.items():
         setattr(a, k, v)
     db.commit()
     db.refresh(a)

@@ -683,6 +683,16 @@ def _openai_chat(db: Session, user: User, message: str, history: Optional[List[d
 
 
 def chat_router(db: Session, user: User, message: str, history: Optional[List[dict]] = None) -> dict:
+    # A bare greeting ("hi", "hello", "hey", ...) is small talk, not a data
+    # request. Answer it with a short, friendly reply instead of routing it to
+    # a tool (which otherwise produced a formal announcement dump).
+    if _is_greeting(message):
+        return {
+            "reply": _greeting_reply(user),
+            "tools_used": [],
+            "mode": "demo" if (settings.ai_provider == "demo" or not settings.ai_api_key) else "openai",
+        }
+
     if settings.ai_provider == "openai" and settings.ai_api_key:
         try:
             return _openai_chat(db, user, message, history)
@@ -690,6 +700,36 @@ def chat_router(db: Session, user: User, message: str, history: Optional[List[di
             # Fall back to the deterministic tool router so the assistant keeps working.
             pass
     return chat(db, user, message, history)
+
+
+# ---------------------------------------------------------------------------
+# Greetings (short, conversational small talk - no tool calls)
+# ---------------------------------------------------------------------------
+
+_GREETINGS = {
+    "hi", "hii", "hiii", "hello", "hey", "heyy", "yo", "howdy", "hiya",
+    "hey there", "hi there", "hello there", "greetings", "good morning",
+    "good afternoon", "good evening", "sup", "what's up", "whats up",
+}
+
+_GREETING_REPLIES: Dict[str, str] = {
+    "student": "Hey! What can I help you with? I can check your attendance, timetable, assignments, marks or projects.",
+    "cr": "Hey! I can pull up your class attendance overview or the latest announcements.",
+    "faculty": "Hello! I can show class statistics or attendance for your sections.",
+    "hod": "Hello! I can help with department statistics or faculty workload.",
+    "admin": "Hello! I can help with department statistics, faculty workload or announcements.",
+}
+
+
+def _is_greeting(message: str) -> bool:
+    """True when the message is *just* a greeting (no follow-up question)."""
+    cleaned = re.sub(r"[^a-z0-9' ]", " ", (message or "").lower())
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned in _GREETINGS
+
+
+def _greeting_reply(user: User) -> str:
+    return _GREETING_REPLIES.get(str(user.role), "Hey! How can I help you today?")
 
 
 SUGGESTED_QUESTIONS: dict[str, list[str]] = {

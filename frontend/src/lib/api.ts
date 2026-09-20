@@ -602,30 +602,30 @@ class ApiClient {
     if (q) parts.push(`q=${encodeURIComponent(q)}`)
     if (role) parts.push(`role=${encodeURIComponent(role)}`)
     if (status) parts.push(`status=${encodeURIComponent(status)}`)
-    return this.request<PaginatedResponse<UserAdmin>>(`/people/users?${parts.join('&')}`)
+    return this.request<PaginatedResponse<UserAdmin>>(`/users?${parts.join('&')}`)
   }
 
   getUserPermissions = async (role: string) => {
     return this.request<{ role: string; permissions: string[] }>(
-      `/people/users/permissions?role=${encodeURIComponent(role)}`
+      `/users/permissions?role=${encodeURIComponent(role)}`
     )
   }
 
   updateUser = async (id: number, data: Partial<UserAdmin>) => {
-    return this.request<UserAdmin>(`/people/users/${id}`, {
+    return this.request<UserAdmin>(`/users/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     })
   }
 
   suspendUser = async (id: number) => {
-    return this.request(`/people/users/${id}/suspend`, {
+    return this.request(`/users/${id}/suspend`, {
       method: 'POST',
     })
   }
 
   activateUser = async (id: number) => {
-    return this.request(`/people/users/${id}/activate`, {
+    return this.request(`/users/${id}/activate`, {
       method: 'POST',
     })
   }
@@ -645,29 +645,29 @@ class ApiClient {
     if (departmentId) parts.push(`department_id=${departmentId}`)
     if (section) parts.push(`section=${encodeURIComponent(section)}`)
     if (semesterId) parts.push(`semester_id=${semesterId}`)
-    return this.request<PaginatedResponse<Student>>(`/people/students?${parts.join('&')}`)
+    return this.request<PaginatedResponse<Student>>(`/students?${parts.join('&')}`)
   }
 
   getStudent = async (id: number) => {
-    return this.request<Student>(`/people/students/${id}`)
+    return this.request<Student>(`/students/${id}`)
   }
 
   createStudent = async (data: Record<string, unknown>) => {
-    return this.request<Student>('/people/students', {
+    return this.request<Student>('/students', {
       method: 'POST',
       body: JSON.stringify(data),
     })
   }
 
   updateStudent = async (id: number, data: Record<string, unknown>) => {
-    return this.request<Student>(`/people/students/${id}`, {
+    return this.request<Student>(`/students/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     })
   }
 
   deleteStudent = async (id: number) => {
-    return this.request(`/people/students/${id}`, {
+    return this.request(`/students/${id}`, {
       method: 'DELETE',
     })
   }
@@ -683,25 +683,25 @@ class ApiClient {
     const parts = [`page=${page}`, `page_size=${pageSize}`]
     if (q) parts.push(`q=${encodeURIComponent(q)}`)
     if (departmentId) parts.push(`department_id=${departmentId}`)
-    return this.request<PaginatedResponse<Faculty>>(`/people/faculty?${parts.join('&')}`)
+    return this.request<PaginatedResponse<Faculty>>(`/faculty?${parts.join('&')}`)
   }
 
   createFaculty = async (data: Record<string, unknown>) => {
-    return this.request<Faculty>('/people/faculty', {
+    return this.request<Faculty>('/faculty', {
       method: 'POST',
       body: JSON.stringify(data),
     })
   }
 
   updateFaculty = async (id: number, data: Record<string, unknown>) => {
-    return this.request<Faculty>(`/people/faculty/${id}`, {
+    return this.request<Faculty>(`/faculty/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     })
   }
 
   deleteFaculty = async (id: number) => {
-    return this.request(`/people/faculty/${id}`, {
+    return this.request(`/faculty/${id}`, {
       method: 'DELETE',
     })
   }

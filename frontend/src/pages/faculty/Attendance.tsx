@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { api } from '@/lib/api'
+import { api, getApiErrorMessage } from '@/lib/api'
 import { AttendanceRosterStudent } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Check, X, Clock, Shield, RefreshCw } from 'lucide-react'
@@ -74,8 +74,8 @@ export default function FacultyAttendance() {
       queryClient.invalidateQueries({ queryKey: ['my-attendance'] })
       queryClient.invalidateQueries({ queryKey: ['attendance-roster'] })
       setSelectedStudents(new Map())
-    } catch (error: any) {
-      toast.error(error.data?.detail || 'Failed to mark attendance')
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Failed to mark attendance'))
     } finally {
       setIsSubmitting(false)
     }
@@ -220,12 +220,22 @@ export default function FacultyAttendance() {
           </div>
 
           <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
-            <div>
+            <div className="space-y-1">
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 {selectedStudents.size} / {roster?.students.length || 0} students marked
               </p>
+              {roster?.already_marked && (
+                <p className="text-sm text-amber-600 dark:text-amber-400">
+                  Attendance for {date} is already recorded for this subject and cannot be submitted again from this
+                  screen.
+                </p>
+              )}
             </div>
-            <Button onClick={handleSubmit} disabled={selectedStudents.size === 0 || isSubmitting || !subjectId || !section} className="bg-green-600 hover:bg-green-700">
+            <Button
+              onClick={handleSubmit}
+              disabled={selectedStudents.size === 0 || isSubmitting || !subjectId || !section || roster?.already_marked}
+              className="bg-green-600 hover:bg-green-700"
+            >
               {isSubmitting ? 'Submitting...' : 'Submit Attendance'}
             </Button>
           </div>

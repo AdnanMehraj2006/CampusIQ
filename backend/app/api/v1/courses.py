@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.deps import pagination_params, require_permission
@@ -174,7 +175,10 @@ def list_semesters(
 ):
     q = db.query(Semester)
     if course_id:
-        q = q.filter(Semester.course_id == course_id)
+        # A semester with course_id IS NULL is college-wide, so it applies to
+        # every course. Include it alongside semesters explicitly linked to the
+        # requested course (otherwise course-wide seeds leave the dropdown empty).
+        q = q.filter(or_(Semester.course_id == course_id, Semester.course_id.is_(None)))
     return [{"id": s.id, "semester_number": s.semester_number,
              "academic_session_id": s.academic_session_id, "course_id": s.course_id}
             for s in q.order_by(Semester.semester_number).all()]

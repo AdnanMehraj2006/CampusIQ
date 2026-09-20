@@ -125,6 +125,11 @@ class AnnouncementUpdate(BaseModel):
     title: Optional[str] = None
     content: Optional[str] = None
     summary: Optional[str] = None
+    target_type: Optional[AnnouncementTarget] = None
+    department_id: Optional[int] = None
+    course_id: Optional[int] = None
+    semester_id: Optional[int] = None
+    section: Optional[str] = None
     priority: Optional[Priority] = None
     expiry_at: Optional[datetime] = None
     is_pinned: Optional[bool] = None
