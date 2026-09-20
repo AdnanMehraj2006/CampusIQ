@@ -61,7 +61,7 @@ def get_current_user(
     if not user_id:
         raise UnauthorizedError("Invalid authentication token.")
 
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter(User.id == int(user_id)).first()
     if not user:
         raise UnauthorizedError("User account no longer exists.")
     if user.status != UserStatus.ACTIVE:
