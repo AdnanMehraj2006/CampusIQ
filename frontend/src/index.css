@@ -56,4 +56,17 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Fix native select element visibility for dropdowns in both themes */
+  select, select option {
+    background-color: white;
+    color: #1f2937;
+  }
+  .dark select {
+    background-color: #374151;
+    color: #f9fafb;
+  }
+  .dark select option {
+    background-color: #1f2937;
+    color: #f9fafb;
+  }
 }
