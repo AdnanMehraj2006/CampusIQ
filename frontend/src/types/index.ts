@@ -456,8 +456,9 @@ export interface ChatTurn {
 }
 
 export interface ChatResponse {
-  response: string
-  history?: ChatTurn[]
+  reply: string
+  tools_used?: string[]
+  mode?: string
 }
 
 export interface DashboardResponse {

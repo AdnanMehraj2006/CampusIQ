@@ -38,7 +38,7 @@ export default function AIAssistant() {
       const response = await api.chat(content, messages)
       const assistantMessage: ChatMessage = { 
         role: 'assistant', 
-        content: response.response 
+        content: response.reply 
       }
       setMessages(prev => [...prev, assistantMessage])
     } catch (error: any) {
