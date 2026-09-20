@@ -28,7 +28,7 @@ def test_student_own_analytics(client, student_headers, db):
     assert response.status_code == 200, response.text
     body = response.json()
     assert "overall_percentage" in body
-    assert "by_subject" in body
+    assert "subject_wise" in body
 
 
 def test_student_analytics_me(client, student_headers):
@@ -160,3 +160,55 @@ def test_faculty_cannot_access_another_faculty_history(client, faculty_headers, 
         assert item["marked_by"] == db.query(User).filter(
             User.email == "faculty@campusiq.edu"
         ).first().id
+
+
+def test_attendance_history_is_faculty_only(
+    client, student_headers, cr_headers, hod_headers, admin_headers
+):
+    """Only faculty may call GET /attendance/my - every other role is rejected."""
+    for role, headers in (
+        ("student", student_headers),
+        ("cr", cr_headers),
+        ("hod", hod_headers),
+        ("admin", admin_headers),
+    ):
+        response = client.get("/api/v1/attendance/my", headers=headers)
+        assert response.status_code == 403, f"{role} should not reach /attendance/my"
+
+
+def test_faculty_history_includes_own_submission_and_section(client, faculty_headers, db):
+    """A freshly submitted record appears in the faculty's history with its section."""
+    sa = _faculty_assignment(db)
+    roster = client.get(
+        f"/api/v1/attendance/roster/{sa.subject_id}/{sa.section}",
+        headers=faculty_headers,
+    ).json()["students"]
+    assert roster, "The seeded section should have students."
+    student_id = roster[0]["student_id"]
+
+    mark = client.post(
+        "/api/v1/attendance",
+        headers=faculty_headers,
+        json={
+            "subject_id": sa.subject_id,
+            "section": sa.section,
+            "date": "2026-01-05",
+            "marks": [{"student_id": student_id, "status": "present"}],
+        },
+    )
+    assert mark.status_code == 201, mark.text
+
+    response = client.get("/api/v1/attendance/my", headers=faculty_headers)
+    assert response.status_code == 200, response.text
+    items = response.json().get("items", [])
+    own = [
+        i
+        for i in items
+        if i["student_id"] == student_id and i["subject_id"] == sa.subject_id
+    ]
+    assert own, "The history should contain the record just submitted."
+    record = own[0]
+    assert record["section"] == sa.section
+    assert record["marked_by"] == (
+        db.query(User).filter(User.email == "faculty@campusiq.edu").first().id
+    )

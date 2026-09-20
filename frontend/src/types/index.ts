@@ -218,6 +218,8 @@ export interface AttendanceRecord {
   student_name?: string
   enrollment_number?: string
   subject_name?: string
+  subject_code?: string
+  section?: string
 }
 
 export interface AttendanceAnalytics {
@@ -522,6 +524,13 @@ export interface DashboardResponse {
   section?: string
   semester_number?: number
   department_name?: string
+  subjects?: Array<{
+    id: number
+    name: string
+    code?: string
+    credits?: number
+  }>
+  sections?: string[]
   class_overview?: {
     section?: string
     overall?: number

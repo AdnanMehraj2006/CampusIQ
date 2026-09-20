@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, getApiErrorMessage } from '@/lib/api'
 import { Announcement, Department, Course, Semester } from '@/types'
@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select } from '@/components/ui/select'
 import { Field } from '@/components/ui/page-header'
 import { toast } from 'react-hot-toast'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Paperclip } from 'lucide-react'
 
 const TARGET_OPTIONS: { value: string; label: string }[] = [
   { value: 'everyone', label: 'Everyone' },
@@ -59,6 +59,7 @@ export function AnnouncementFormModal({ open, onClose, announcement, queryKey }:
     expiry_at: '',
   })
   const [attachment, setAttachment] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!open) return
@@ -305,17 +306,46 @@ export function AnnouncementFormModal({ open, onClose, announcement, queryKey }:
             </Field>
           )}
 
-           <Field label="Expiry" hint="Optional - announcement hides after this time. Format: DD-MM-YYYY, HH:MM">
-            <Input
-              type="datetime-local"
-              value={form.expiry_at}
-              onChange={(e) => setForm({ ...form, expiry_at: e.target.value })}
-            />
-          </Field>
-        </div>
+           <Field label="Expiry" hint="Optional - select a date AND time (DD-MM-YYYY, HH:MM)">
+             <Input
+               type="datetime-local"
+               value={form.expiry_at}
+               onChange={(e) => setForm({ ...form, expiry_at: e.target.value })}
+             />
+             {form.expiry_at && (
+               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                 Hides after {new Date(form.expiry_at).toLocaleString('en-GB', {
+                   day: '2-digit', month: '2-digit', year: 'numeric',
+                   hour: '2-digit', minute: '2-digit',
+                 })}
+               </p>
+             )}
+           </Field>
+         </div>
 
-        <Field label="Attachment">
-          <Input type="file" onChange={(e) => setAttachment(e.target.files?.[0] || null)} />
+        <Field label="Attachment" hint="Optional - PDF, image or document">
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            onChange={(e) => {
+              setAttachment(e.target.files?.[0] || null)
+              if (e.target) e.target.value = ''
+            }}
+          />
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Paperclip className="h-4 w-4 mr-2" />
+              {attachment ? 'Change file' : 'Choose file'}
+            </Button>
+            <span className="text-sm text-gray-700 dark:text-gray-300">
+              {attachment ? attachment.name : 'No file selected'}
+            </span>
+          </div>
           {attachment && (
             <p className="mt-1 text-xs text-green-600 dark:text-green-400">
               Selected: {attachment.name}

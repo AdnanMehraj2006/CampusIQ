@@ -426,9 +426,10 @@ def _fmt_attendance(d: dict) -> str:
         f"Overall attendance: {d['overall_percentage']}% ({d['classes_attended']}/{d['classes_conducted']} classes) - {d['zone'].upper()} zone.",
         f"Required: {d['required_percentage']:g}%. By subject:",
     ]
-    for s in d["by_subject"]:
+    by_subject = d.get("subject_wise", d.get("by_subject", []))
+    for s in by_subject:
         lines.append(f"  - {s['subject_name']} ({s['subject_code']}): {s['percentage']}%  [{s['zone']}]")
-    below = [s for s in d["by_subject"] if s["percentage"] < d["required_percentage"]]
+    below = [s for s in by_subject if s["percentage"] < d["required_percentage"]]
     if below:
         lines.append(
             "Below threshold: " + ", ".join(f"{s['subject_name']} ({s['percentage']}%)" for s in below)

@@ -143,3 +143,25 @@ def test_faculty_section_announcement_with_invalid_section(client, faculty_heade
         },
     )
     assert response.status_code == 403, response.text
+
+
+def test_faculty_target_sections_match_assigned_subjects(client, faculty_headers, db):
+    """The UI section choices come from the same authoritative source as the
+    backend validation: SubjectAssignment rows for that faculty."""
+    from app.models.subject import SubjectAssignment
+    from app.models.user import User
+
+    user = db.query(User).filter(User.email == "faculty@campusiq.edu").first()
+    expected = {
+        sa.section
+        for sa in db.query(SubjectAssignment)
+        .filter(SubjectAssignment.faculty_id == user.faculty_profile.id)
+        .all()
+    }
+    response = client.get(
+        "/api/v1/announcements/targets/allowed", headers=faculty_headers
+    )
+    assert response.status_code == 200, response.text
+    assert set(response.json().get("sections", [])) == expected
+    # No hardcoded/fake list: every offered section is a real assignment.
+    assert expected, "The demo faculty should have at least one assigned section."

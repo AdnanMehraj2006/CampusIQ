@@ -311,7 +311,14 @@ def faculty_attendance_history(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(Permission.MARK_ATTENDANCE)),
 ):
-    """Attendance records submitted by the authenticated faculty member."""
+    """Attendance records submitted by the authenticated faculty member.
+
+    Identity is derived from the authenticated user only; no faculty id is
+    accepted from the client, so one faculty member can never read another's
+    submissions.
+    """
+    if current_user.role != Role.FACULTY:
+        raise ForbiddenError("Only faculty can view their attendance history.")
     if current_user.faculty_profile is None:
         raise ForbiddenError("No faculty profile is linked to your account.")
     q = db.query(Attendance).filter(Attendance.marked_by == current_user.id)
@@ -335,6 +342,7 @@ def faculty_attendance_history(
             "student_id": r.student_id,
             "student_name": student.user.name if student and student.user else None,
             "enrollment_number": student.enrollment_number if student else None,
+            "section": student.section if student else None,
             "status": r.status,
             "note": r.note,
             "marked_by": r.marked_by,

@@ -103,7 +103,7 @@ export default function FacultyAttendance() {
               {loadingDashboard ? (
                 <option>Loading...</option>
               ) : (
-                (dashboard as any).subjects?.map((s: any) => (
+                dashboard?.subjects?.map((s) => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))
               )}
@@ -262,6 +262,7 @@ export default function FacultyAttendance() {
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Student</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Enrollment</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Subject</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Section</th>
                   <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Note</th>
                 </tr>
@@ -273,6 +274,7 @@ export default function FacultyAttendance() {
                     <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{record.student_name}</td>
                     <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">{record.enrollment_number}</td>
                     <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{record.subject_name}</td>
+                    <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{record.section}</td>
                     <td className="px-4 py-2 text-center">
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
