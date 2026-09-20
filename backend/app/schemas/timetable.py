@@ -54,14 +54,19 @@ class AttendanceSummaryItem(BaseModel):
 
 
 class AttendanceAnalytics(BaseModel):
+    total_classes: int
+    attended: int
+    absent: int
+    late: int
+    excused: int
     overall_percentage: float
     classes_attended: int
     classes_conducted: int
     classes_missed: int
     required_percentage: float
     zone: str
-    by_subject: List[AttendanceSummaryItem]
-    monthly: List[dict]
+    subject_wise: List[AttendanceSummaryItem]
+    trend: List[dict]
 
 
 class AttendancePrediction(BaseModel):

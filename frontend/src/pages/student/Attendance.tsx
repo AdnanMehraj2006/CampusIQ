@@ -122,7 +122,7 @@ export default function StudentAttendance() {
                 <div className="text-right">
                   <p className="text-sm font-medium text-gray-900 dark:text-white">{subject.percentage.toFixed(1)}%</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {subject.attended}/{subject.conducted}
+                    {subject.classes_attended}/{subject.classes_conducted}
                   </p>
                 </div>
               </div>

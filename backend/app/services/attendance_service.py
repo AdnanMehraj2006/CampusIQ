@@ -317,14 +317,19 @@ def student_analytics(db: Session, student_id: int) -> dict:
     ]
 
     return {
+        "total_classes": conducted,
+        "attended": attended,
+        "absent": conducted - attended,
+        "late": 0,
+        "excused": 0,
         "overall_percentage": overall,
         "classes_attended": attended,
         "classes_conducted": conducted,
         "classes_missed": conducted - attended,
         "required_percentage": settings.attendance_threshold,
         "zone": zone_for(overall),
-        "by_subject": by_subject,
-        "monthly": monthly_trend(db, student_id),
+        "subject_wise": by_subject,
+        "trend": monthly_trend(db, student_id),
     }
 
 
@@ -351,7 +356,7 @@ def monthly_trend(db: Session, student_id: int, subject_id: Optional[int] = None
         key = d.strftime("%Y-%m")
         b = buckets.get(key, {"conducted": 0, "attended": 0})
         pct = round(b["attended"] / b["conducted"] * 100.0, 2) if b["conducted"] else None
-        out.append({"month": key, "percentage": pct, "conducted": b["conducted"], "attended": b["attended"]})
+        out.append({"date": key, "percentage": pct, "conducted": b["conducted"], "attended": b["attended"]})
     return out
 
 

@@ -235,13 +235,17 @@ export interface AttendanceAnalytics {
   subject_wise: Array<{
     subject_id: number
     subject_name: string
-    attended: number
-    conducted: number
+    subject_code: string
+    classes_attended: number
+    classes_conducted: number
     percentage: number
+    zone: string
   }>
   trend: Array<{
     date: string
     percentage: number
+    conducted: number
+    attended: number
   }>
 }
 
