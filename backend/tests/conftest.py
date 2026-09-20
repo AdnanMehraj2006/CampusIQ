@@ -19,13 +19,14 @@ sys.path.insert(0, str(BACKEND_DIR))
 TEST_DB_PATH = BACKEND_DIR / "test_campusiq.db"
 os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB_PATH}"
 os.environ["AI_PROVIDER"] = "demo"
-os.environ["RATE_LIMIT_ENABLED"] = "false"
+os.environ["RATE_LIMIT_ENABLED"] = "true"
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.database import Base, SessionLocal, engine  # noqa: E402
 from app.main import app  # noqa: E402
+from app.middleware.rate_limiter import rate_limiter  # noqa: E402
 from seed import seed as seed_database  # noqa: E402
 
 # Demo credentials (see seed.py).
@@ -83,6 +84,22 @@ def db():
 @pytest.fixture(scope="session")
 def client(db) -> TestClient:
     return TestClient(app)
+
+
+# ---------------------------------------------------------------------------
+# Rate limiter isolation
+# ---------------------------------------------------------------------------
+# The limiter is a process-wide singleton keyed by route + client IP, and the
+# limits are per-minute. Without a reset, a test that exhausts the login/AI
+# budget would leak into every later test using the same client (all TestClient
+# requests share one IP), causing spurious 429s. Clear the counters per test.
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    rate_limiter.reset()
+    yield
+    rate_limiter.reset()
 
 
 # ---------------------------------------------------------------------------

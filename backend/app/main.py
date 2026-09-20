@@ -8,17 +8,14 @@ from __future__ import annotations
 
 import logging
 import time
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
-from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config import settings
 from app.middleware.error_handler import register_error_handlers
+from app.middleware.rate_limiter import RateLimitingMiddleware, rate_limiter
 from app.models import Base  # noqa: F401  (ensures metadata is importable)
 
 logging.basicConfig(
@@ -28,7 +25,13 @@ logging.basicConfig(
 logger = logging.getLogger("campusiq")
 
 
-limiter = Limiter(key_func=get_remote_address, enabled=settings.rate_limit_enabled)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    logger.info("Starting CampusIQ API...")
+    yield
+    # Shutdown
+    logger.info("Shutting down CampusIQ API...")
 
 
 def create_app() -> FastAPI:
@@ -43,10 +46,23 @@ def create_app() -> FastAPI:
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_url="/openapi.json",
+        lifespan=lifespan,
     )
 
-    app.state.limiter = limiter
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    # Add rate limiting middleware FIRST (before CORS)
+    app.add_middleware(RateLimitingMiddleware)
+    # Expose the limiter's storage so ops/debug tooling can inspect it.
+    app.state.rate_limit_storage = rate_limiter.storage
+
+    # ---- CORS ----
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins_list,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "Accept", "X-Requested-With"],
+        expose_headers=["Content-Disposition"],
+    )
 
     # ---- Security headers ----
     @app.middleware("http")
@@ -73,16 +89,6 @@ def create_app() -> FastAPI:
         duration_ms = (time.perf_counter() - start) * 1000
         logger.info("%s %s -> %s (%.1fms)", request.method, request.url.path, response.status_code, duration_ms)
         return response
-
-    # ---- CORS ----
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.cors_origins_list,
-        allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "Accept", "X-Requested-With"],
-        expose_headers=["Content-Disposition"],
-    )
 
     register_error_handlers(app)
 
