@@ -289,7 +289,7 @@ export function AnnouncementFormModal({ open, onClose, announcement, queryKey }:
           )}
 
           {needsSection && (
-            <Field label="Section" required hint={facultySections.length ? 'Limited to sections you teach' : undefined}>
+            <Field label="Section" required hint={facultySections.length ? 'Limited to sections you teach' : 'No sections available for your subjects'}>
               {facultySections.length ? (
                 <Select value={form.section} onChange={(e) => setForm({ ...form, section: e.target.value })}>
                   <option value="">Select section</option>
@@ -300,17 +300,12 @@ export function AnnouncementFormModal({ open, onClose, announcement, queryKey }:
                   ))}
                 </Select>
               ) : (
-                <Input
-                  value={form.section}
-                  onChange={(e) => setForm({ ...form, section: e.target.value })}
-                  placeholder="e.g. A"
-                  maxLength={10}
-                />
+                <div className="text-sm text-gray-500 dark:text-gray-400">No sections available</div>
               )}
             </Field>
           )}
 
-          <Field label="Expiry" hint="Optional - announcement hides after this time">
+           <Field label="Expiry" hint="Optional - announcement hides after this time. Format: DD-MM-YYYY, HH:MM">
             <Input
               type="datetime-local"
               value={form.expiry_at}
@@ -321,6 +316,11 @@ export function AnnouncementFormModal({ open, onClose, announcement, queryKey }:
 
         <Field label="Attachment">
           <Input type="file" onChange={(e) => setAttachment(e.target.files?.[0] || null)} />
+          {attachment && (
+            <p className="mt-1 text-xs text-green-600 dark:text-green-400">
+              Selected: {attachment.name}
+            </p>
+          )}
           {announcement?.attachment_name && !attachment && (
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               Current: {announcement.attachment_name}

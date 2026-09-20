@@ -127,3 +127,36 @@ def test_hod_views_department_attendance(client, hod_headers):
 def test_admin_views_all_attendance(client, admin_headers):
     response = client.get("/api/v1/attendance", headers=admin_headers)
     assert response.status_code == 200, response.text
+
+
+def test_faculty_can_view_attendance_history(client, faculty_headers, db):
+    """Faculty can view attendance they previously submitted."""
+    response = client.get("/api/v1/attendance/my", headers=faculty_headers)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert "items" in body or "data" in body
+
+
+def test_faculty_history_scoped_to_own_submissions(client, faculty_headers, db):
+    """Faculty history contains only records they marked."""
+    response = client.get("/api/v1/attendance/my", headers=faculty_headers)
+    assert response.status_code == 200
+    body = response.json()
+    items = body.get("items", body.get("data", []))
+    for item in items:
+        assert item["marked_by"] == db.query(User).filter(
+            User.email == "faculty@campusiq.edu"
+        ).first().id
+
+
+def test_faculty_cannot_access_another_faculty_history(client, faculty_headers, db):
+    """Faculty A cannot access Faculty B's attendance history."""
+    response = client.get("/api/v1/attendance/my?marked_by=999", headers=faculty_headers)
+    # The endpoint should not expose other faculty's data
+    assert response.status_code == 200
+    body = response.json()
+    items = body.get("items", body.get("data", []))
+    for item in items:
+        assert item["marked_by"] == db.query(User).filter(
+            User.email == "faculty@campusiq.edu"
+        ).first().id

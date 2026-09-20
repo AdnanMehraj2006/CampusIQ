@@ -42,13 +42,16 @@ def validate_publish_scope(db: Session, user: User, announcement_in: dict) -> No
             section = announcement_in.get("section")
             if not section:
                 raise ForbiddenError("A section is required for section-targeted announcements.")
+            if not user.faculty_profile:
+                raise ForbiddenError("No faculty profile is linked to your account.")
             assigned = (
                 db.query(SubjectAssignment.section)
                 .filter(SubjectAssignment.faculty_id == user.faculty_profile.id)
                 .distinct()
                 .all()
-            ) if user.faculty_profile else []
-            if section not in {a[0] for a in assigned}:
+            )
+            valid_sections = {a[0] for a in assigned}
+            if section not in valid_sections:
                 raise ForbiddenError("You can only publish to sections you teach.")
         return
 

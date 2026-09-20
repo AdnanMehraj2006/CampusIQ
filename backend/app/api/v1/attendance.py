@@ -303,3 +303,40 @@ def attendance_roster(
             for s in roster
         ],
     }
+
+
+@router.get("/my", response_model=dict)
+def faculty_attendance_history(
+    page_params: dict = Depends(pagination_params),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.MARK_ATTENDANCE)),
+):
+    """Attendance records submitted by the authenticated faculty member."""
+    if current_user.faculty_profile is None:
+        raise ForbiddenError("No faculty profile is linked to your account.")
+    q = db.query(Attendance).filter(Attendance.marked_by == current_user.id)
+    total = q.count()
+    rows = (
+        q.order_by(Attendance.date.desc(), Attendance.id.desc())
+        .offset(page_params["offset"])
+        .limit(page_params["page_size"])
+        .all()
+    )
+    out = []
+    for r in rows:
+        subject = db.get(Subject, r.subject_id)
+        student = db.get(Student, r.student_id)
+        out.append({
+            "id": r.id,
+            "date": r.date.isoformat() if r.date else None,
+            "subject_id": r.subject_id,
+            "subject_name": subject.name if subject else None,
+            "subject_code": subject.code if subject else None,
+            "student_id": r.student_id,
+            "student_name": student.user.name if student and student.user else None,
+            "enrollment_number": student.enrollment_number if student else None,
+            "status": r.status,
+            "note": r.note,
+            "marked_by": r.marked_by,
+        })
+    return paginated(out, page_params["page"], page_params["page_size"], total)

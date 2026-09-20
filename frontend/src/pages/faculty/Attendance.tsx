@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, getApiErrorMessage } from '@/lib/api'
-import { AttendanceRosterStudent } from '@/types'
+import { AttendanceRosterStudent, AttendanceRecord } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Check, X, Clock, Shield, RefreshCw } from 'lucide-react'
 import { toast } from 'react-hot-toast'
@@ -19,6 +19,11 @@ export default function FacultyAttendance() {
   const { data: dashboard, isLoading: loadingDashboard } = useQuery({
     queryKey: ['dashboard', 'faculty'],
     queryFn: () => api.getDashboard('faculty'),
+  })
+
+  const { data: history, isLoading: loadingHistory } = useQuery({
+    queryKey: ['my-attendance'],
+    queryFn: () => api.getMyAttendanceHistory(1, 50),
   })
 
   const { data: roster, isLoading: loadingRoster, refetch } = useQuery({
@@ -241,6 +246,53 @@ export default function FacultyAttendance() {
           </div>
         </div>
       )}
+
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+        <h2 className="font-semibold text-gray-900 dark:text-white mb-4">Attendance History</h2>
+        {loadingHistory ? (
+          <p className="text-sm text-gray-500 dark:text-gray-400">Loading history...</p>
+        ) : history?.items.length === 0 ? (
+          <p className="text-sm text-gray-500 dark:text-gray-400">No attendance records found.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 dark:bg-gray-700/50">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Date</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Student</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Enrollment</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Subject</th>
+                  <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Note</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {history?.items.map((record: AttendanceRecord) => (
+                  <tr key={record.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                    <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{record.date}</td>
+                    <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{record.student_name}</td>
+                    <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">{record.enrollment_number}</td>
+                    <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{record.subject_name}</td>
+                    <td className="px-4 py-2 text-center">
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+                          ${record.status === 'present' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                            : record.status === 'absent' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                            : record.status === 'late' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
+                            : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                          }`}
+                      >
+                        {record.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">{record.note}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

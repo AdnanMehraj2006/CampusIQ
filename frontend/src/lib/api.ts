@@ -178,6 +178,12 @@ class ApiClient {
     )
   }
 
+  getMyAttendanceHistory = async (page: number = 1, pageSize: number = 20) => {
+    return this.request<PaginatedResponse<AttendanceRecord>>(
+      `/attendance/my?page=${page}&page_size=${pageSize}`
+    )
+  }
+
   // Timetable
   getTimetable = async () => {
     return this.request<TimetableEntry[]>('/timetable/my')

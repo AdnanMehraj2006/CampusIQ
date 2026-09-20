@@ -96,3 +96,50 @@ def test_faculty_can_publish_section_announcement(client, faculty_headers, db):
     )
     assert response.status_code == 201, response.text
     assert response.json()["title"] == "Test notice"
+
+
+def test_faculty_cannot_publish_section_they_dont_teach(client, faculty_headers, db):
+    """Faculty cannot publish announcements to sections they don't teach."""
+    from app.models.subject import SubjectAssignment
+    from app.models.user import User
+
+    user = db.query(User).filter(User.email == "faculty@campusiq.edu").first()
+    faculty_sections = set(
+        sa.section
+        for sa in db.query(SubjectAssignment).filter(
+            SubjectAssignment.faculty_id == user.faculty_profile.id
+        ).all()
+    )
+    all_sections = set(
+        sa.section for sa in db.query(SubjectAssignment).all()
+    )
+    other_sections = all_sections - faculty_sections
+    if not other_sections:
+        return  # No other sections exist
+    invalid_section = list(other_sections)[0]
+    response = client.post(
+        "/api/v1/announcements",
+        headers=faculty_headers,
+        json={
+            "title": "Invalid section",
+            "content": "This should fail.",
+            "target_type": "section",
+            "section": invalid_section,
+        },
+    )
+    assert response.status_code == 403, response.text
+
+
+def test_faculty_section_announcement_with_invalid_section(client, faculty_headers, db):
+    """Faculty cannot publish announcements to arbitrary section values."""
+    response = client.post(
+        "/api/v1/announcements",
+        headers=faculty_headers,
+        json={
+            "title": "Invalid section",
+            "content": "This should fail.",
+            "target_type": "section",
+            "section": "Y",
+        },
+    )
+    assert response.status_code == 403, response.text
