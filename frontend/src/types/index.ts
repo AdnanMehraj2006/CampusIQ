@@ -517,4 +517,45 @@ export interface DashboardResponse {
   section?: string
   semester_number?: number
   department_name?: string
+  class_overview?: {
+    section?: string
+    overall?: number
+    conducted?: number
+    attended?: number
+    students?: Array<{
+      id: number
+      name: string
+      percentage: number
+      zone: string
+    }>
+  }
+  timetable?: Array<{
+    day: string
+    period: number
+    subject?: string
+    faculty?: string
+  }>
+  my_requests?: Array<{
+    id: number
+    title: string
+    type: string
+    status: string
+    created_at: string
+  }>
+  active_session?: {
+    id: number
+    name: string
+  }
+  charts?: {
+    attendance_zones?: Array<{
+      name: string
+      value: number
+    }>
+    students_by_department?: Array<{
+      name: string
+      students: number
+      faculty: number
+    }>
+  }
+  unread_notifications?: number
 }

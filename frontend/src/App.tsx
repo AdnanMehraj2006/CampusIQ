@@ -71,7 +71,9 @@ function ProtectedRoute({
 
   if (!isAuth) return <Navigate to="/login" replace />
 
-  if (role && !allowedRoles.includes(role)) return <Navigate to="/unauthorized" replace />
+  // Normalize lowercase backend roles to uppercase for comparison
+  const roleUpper = role?.toUpperCase() as Role | null
+  if (roleUpper && !allowedRoles.includes(roleUpper)) return <Navigate to="/unauthorized" replace />
 
   return <>{children}</>
 }
@@ -81,6 +83,7 @@ function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/unauthorized" element={<NotFound />} />
+      <Route path="/" element={<Navigate to="/login" replace />} />
       
       {/* Student Routes */}
       <Route path="/student/*" element={
@@ -195,8 +198,7 @@ function App() {
           </Layout>
         </ProtectedRoute>
       } />
-
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   )
 }
