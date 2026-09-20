@@ -553,9 +553,13 @@ class ApiClient {
 
   // AI Assistant
   chat = async (message: string, history?: Array<{role: 'user' | 'assistant', content: string}>) => {
+    const payload: Record<string, unknown> = { message }
+    if (history !== undefined) {
+      payload.history = history
+    }
     return this.request<ChatResponse>('/ai/chat', {
       method: 'POST',
-      body: JSON.stringify({ message, history }),
+      body: JSON.stringify(payload),
     })
   }
 
