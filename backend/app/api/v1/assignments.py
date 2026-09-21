@@ -272,7 +272,7 @@ def list_submissions(
 
 
 @router.post("/assignments/{assignment_id}/submit", response_model=SubmissionOut, status_code=201)
-def submit_assignment(
+async def submit_assignment(
     assignment_id: int,
     request: Request,
     text_submission: str | None = Form(None),
@@ -301,7 +301,7 @@ def submit_assignment(
         existing.submitted_at = now
         existing.is_late = is_late
         if file is not None:
-            path, original = upload_service.save_upload(file, subfolder="submissions")
+            path, original = await upload_service.save_upload(file, subfolder="submissions")
             existing.file_path, existing.file_name = path, original
         db.commit()
         db.refresh(existing)
@@ -309,7 +309,7 @@ def submit_assignment(
     else:
         path = original = None
         if file is not None:
-            path, original = upload_service.save_upload(file, subfolder="submissions")
+            path, original = await upload_service.save_upload(file, subfolder="submissions")
         submission = AssignmentSubmission(
             assignment_id=assignment_id,
             student_id=student.id,

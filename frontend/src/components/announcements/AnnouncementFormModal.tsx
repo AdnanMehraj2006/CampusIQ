@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select } from '@/components/ui/select'
+import { DateTimePicker } from '@/components/ui/date-time-picker'
 import { Field } from '@/components/ui/page-header'
 import { toast } from 'react-hot-toast'
 import { Loader2, Paperclip } from 'lucide-react'
@@ -306,21 +307,12 @@ export function AnnouncementFormModal({ open, onClose, announcement, queryKey }:
             </Field>
           )}
 
-           <Field label="Expiry" hint="Optional - select a date AND time (DD-MM-YYYY, HH:MM)">
-             <Input
-               type="datetime-local"
-               value={form.expiry_at}
-               onChange={(e) => setForm({ ...form, expiry_at: e.target.value })}
-             />
-             {form.expiry_at && (
-               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                 Hides after {new Date(form.expiry_at).toLocaleString('en-GB', {
-                   day: '2-digit', month: '2-digit', year: 'numeric',
-                   hour: '2-digit', minute: '2-digit',
-                 })}
-               </p>
-             )}
-           </Field>
+           <Field label="Expiry" hint="Optional - select a date and time">
+              <DateTimePicker
+                value={form.expiry_at}
+                onChange={(value) => setForm({ ...form, expiry_at: value })}
+              />
+            </Field>
          </div>
 
         <Field label="Attachment" hint="Optional - PDF, image or document">

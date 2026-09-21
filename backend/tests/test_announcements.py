@@ -165,3 +165,21 @@ def test_faculty_target_sections_match_assigned_subjects(client, faculty_headers
     assert set(response.json().get("sections", [])) == expected
     # No hardcoded/fake list: every offered section is a real assignment.
     assert expected, "The demo faculty should have at least one assigned section."
+
+
+def test_admin_can_target_all_audiences(client, admin_headers, db):
+    """Admin can target all audiences and see all sections."""
+    response = client.get(
+        "/api/v1/announcements/targets/allowed", headers=admin_headers
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert "everyone" in data["targets"]
+    assert "department" in data["targets"]
+    assert "course" in data["targets"]
+    assert "semester" in data["targets"]
+    assert "section" in data["targets"]
+    assert "faculty" in data["targets"]
+    # Admin should see all sections from all students
+    assert "sections" in data
+    assert len(data["sections"]) > 0

@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
+import { FileUpload } from '@/components/ui/file-upload'
 import { Input } from '@/components/ui/input'
 import { format } from 'date-fns'
-import { FileDown, Clock, CheckCircle, AlertCircle } from 'lucide-react'
+import { FileDown, Clock, CheckCircle } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 
 export default function StudentAssignments() {
@@ -167,19 +168,19 @@ export default function StudentAssignments() {
                 </div>
               )}
 
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-                <h3 className="font-medium text-gray-900 dark:text-white mb-3">Submit Assignment</h3>
-                <textarea
-                  placeholder="Enter your submission..."
-                  value={submissionText}
-                  onChange={(e) => setSubmissionText(e.target.value)}
-                  className="w-full h-32 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-transparent text-gray-900 dark:text-white resize-none"
-                />
-                <input
-                  type="file"
-                  onChange={(e) => setSubmissionFile(e.target.files?.[0] || null)}
-                  className="mt-2"
-                />
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                 <h3 className="font-medium text-gray-900 dark:text-white mb-3">Submit Assignment</h3>
+                 <textarea
+                   placeholder="Enter your submission..."
+                   value={submissionText}
+                   onChange={(e) => setSubmissionText(e.target.value)}
+                   className="w-full h-32 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-transparent text-gray-900 dark:text-white resize-none"
+                 />
+                 <FileUpload
+                   onFileSelect={setSubmissionFile}
+                   maxSizeMB={10}
+                   label="Upload file"
+                 />
                 <div className="flex items-center justify-between mt-4">
                   <span className="text-sm text-gray-500 dark:text-gray-400">
                     Max marks: {selectedAssignment.max_marks}

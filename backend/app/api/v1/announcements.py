@@ -176,16 +176,18 @@ def allowed_targets(
     """Which audiences the current user may publish to (drives the UI)."""
     if current_user.role == "admin":
         targets = ["everyone", "department", "course", "semester", "section", "faculty"]
+        from app.models.people import Student
+        sections = [s[0] for s in db.query(Student.section).distinct().all()]
     elif current_user.role == "hod":
         targets = ["department", "course", "semester", "section", "faculty"]
+        sections = []
     elif current_user.role == "faculty":
         targets = ["section", "semester", "faculty"]
-    else:
-        targets = []
-    sections = []
-    if current_user.role == "faculty" and current_user.faculty_profile:
         from app.models.subject import SubjectAssignment
 
         sections = [s[0] for s in db.query(SubjectAssignment.section)
                     .filter(SubjectAssignment.faculty_id == current_user.faculty_profile.id).distinct().all()]
+    else:
+        targets = []
+        sections = []
     return {"targets": targets, "sections": sections}
