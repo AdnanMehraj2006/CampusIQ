@@ -9,6 +9,7 @@ import {
   Faculty,
   Subject,
   SubjectAssignment,
+  ClassTeacher,
   Department,
   Course,
   Semester,
@@ -857,8 +858,30 @@ class ApiClient {
     })
   }
 
-  deleteSubjectAssignment = async (id: number) => {
+   deleteSubjectAssignment = async (id: number) => {
     return this.request(`/subjects/assignments/${id}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // Class teachers
+  getClassTeachers = async (params: { section?: string; semesterId?: number } = {}) => {
+    const { section, semesterId } = params
+    const parts: string[] = []
+    if (section) parts.push(`section=${encodeURIComponent(section)}`)
+    if (semesterId) parts.push(`semester_id=${semesterId}`)
+    return this.request<ClassTeacher[]>(`/class-teachers${parts.length ? `?${parts.join('&')}` : ''}`)
+  }
+
+  createClassTeacher = async (data: Partial<ClassTeacher>) => {
+    return this.request<ClassTeacher>('/class-teachers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  deleteClassTeacher = async (id: number) => {
+    return this.request(`/class-teachers/${id}`, {
       method: 'DELETE',
     })
   }

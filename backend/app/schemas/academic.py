@@ -168,6 +168,21 @@ class SubjectAssignmentOut(ORMModel):
     faculty_name: Optional[str] = None
 
 
+# ---- Class teachers ----
+class ClassTeacherCreate(BaseModel):
+    faculty_id: int
+    section: str = Field("A", max_length=10)
+    semester_id: Optional[int] = None
+
+
+class ClassTeacherOut(ORMModel):
+    id: int
+    faculty_id: int
+    section: str
+    semester_id: Optional[int] = None
+    faculty_name: Optional[str] = None
+
+
 # ---- Classrooms ----
 class ClassroomBase(BaseModel):
     room_number: str = Field(..., min_length=1, max_length=20)

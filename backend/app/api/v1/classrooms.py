@@ -1,97 +1,89 @@
-"""Classroom management (admin)."""
+"""Class teacher assignments and classroom management."""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.deps import pagination_params, require_permission
-from app.core.exceptions import ConflictError, NotFoundError
+from app.core.exceptions import BadRequestError, NotFoundError
 from app.core.permissions import Permission
 from app.database import get_db
-from app.models.classroom import Classroom
+from app.models.academic import ClassTeacher
+from app.models.people import Faculty
 from app.models.user import User
-from app.schemas import ClassroomCreate, ClassroomOut, ClassroomUpdate
+from app.schemas import ClassTeacherCreate, ClassTeacherOut
 from app.schemas.common import paginated
-from app.services.audit_service import log_from_request
 
-router = APIRouter(prefix="/classrooms", tags=["Classrooms"])
+router = APIRouter(tags=["Academic"])
 
 
-@router.get("", response_model=dict)
-def list_classrooms(
+def _class_teacher_out(db: Session, ct: ClassTeacher) -> dict:
+    return {
+        "id": ct.id,
+        "faculty_id": ct.faculty_id,
+        "section": ct.section,
+        "semester_id": ct.semester_id,
+        "faculty_name": ct.faculty.user.name if ct.faculty and ct.faculty.user else None,
+    }
+
+
+@router.get("/class-teachers", response_model=dict)
+def list_class_teachers(
+    section: str | None = None,
+    semester_id: int | None = None,
     db: Session = Depends(get_db),
     page_params: dict = Depends(pagination_params),
-    current_user: User = Depends(require_permission(Permission.VIEW_ANNOUNCEMENTS)),
+    current_user: User = Depends(require_permission(Permission.VIEW_FACULTY)),
 ):
-    q = db.query(Classroom)
-    if page_params["q"]:
-        q = q.filter(
-            Classroom.room_number.ilike(f"%{page_params['q']}%")
-            | Classroom.building.ilike(f"%{page_params['q']}%")
-        )
+    q = db.query(ClassTeacher)
+    if section:
+        q = q.filter(ClassTeacher.section == section)
+    if semester_id:
+        q = q.filter(ClassTeacher.semester_id == semester_id)
     total = q.count()
-    rows = q.order_by(Classroom.building, Classroom.room_number).offset(page_params["offset"]).limit(page_params["page_size"]).all()
-    items = [
-        {
-            "id": r.id,
-            "room_number": r.room_number,
-            "building": r.building,
-            "capacity": r.capacity,
-            "room_type": r.room_type,
-        }
-        for r in rows
-    ]
-    return paginated(items, page_params["page"], page_params["page_size"], total)
+    rows = q.order_by(ClassTeacher.section, ClassTeacher.semester_id).offset(page_params["offset"]).limit(page_params["page_size"]).all()
+    return paginated([_class_teacher_out(db, ct) for ct in rows], page_params["page"], page_params["page_size"], total)
 
 
-@router.post("", response_model=ClassroomOut, status_code=201)
-def create_classroom(
-    payload: ClassroomCreate,
-    request: Request,
+@router.post("/class-teachers", response_model=ClassTeacherOut, status_code=201)
+def create_class_teacher(
+    payload: ClassTeacherCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission(Permission.MANAGE_CLASSROOMS)),
+    current_user: User = Depends(require_permission(Permission.MANAGE_FACULTY)),
 ):
-    if db.query(Classroom).filter(Classroom.room_number == payload.room_number).first():
-        raise ConflictError("A classroom with this room number already exists.")
-    room = Classroom(**payload.model_dump())
-    db.add(room)
+    faculty = db.get(Faculty, payload.faculty_id)
+    if not faculty:
+        raise NotFoundError("Faculty member not found.")
+
+    existing = (
+        db.query(ClassTeacher)
+        .filter(ClassTeacher.faculty_id == payload.faculty_id, ClassTeacher.section == payload.section, ClassTeacher.semester_id == payload.semester_id)
+        .first()
+    )
+    if existing:
+        raise BadRequestError("A class teacher already exists for this faculty/section/semester combination.")
+
+    ct = ClassTeacher(
+        faculty_id=payload.faculty_id,
+        section=payload.section,
+        semester_id=payload.semester_id,
+    )
+    db.add(ct)
     db.commit()
-    db.refresh(room)
-    log_from_request(db, request, current_user, "classroom.create", "classroom", resource_id=room.id)
-    return room
+    db.refresh(ct)
+    return _class_teacher_out(db, ct)
 
 
-@router.put("/{classroom_id}", response_model=ClassroomOut)
-def update_classroom(
-    classroom_id: int,
-    payload: ClassroomUpdate,
-    request: Request,
+@router.delete("/class-teachers/{teacher_id}")
+def delete_class_teacher(
+    teacher_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission(Permission.MANAGE_CLASSROOMS)),
+    current_user: User = Depends(require_permission(Permission.MANAGE_FACULTY)),
 ):
-    room = db.get(Classroom, classroom_id)
-    if not room:
-        raise NotFoundError("Classroom not found.")
-    for k, v in payload.model_dump(exclude_unset=True).items():
-        setattr(room, k, v)
+    ct = db.get(ClassTeacher, teacher_id)
+    if not ct:
+        raise NotFoundError("Class teacher assignment not found.")
+    db.delete(ct)
     db.commit()
-    db.refresh(room)
-    log_from_request(db, request, current_user, "classroom.update", "classroom", resource_id=room.id)
-    return room
-
-
-@router.delete("/{classroom_id}")
-def delete_classroom(
-    classroom_id: int,
-    request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission(Permission.MANAGE_CLASSROOMS)),
-):
-    room = db.get(Classroom, classroom_id)
-    if not room:
-        raise NotFoundError("Classroom not found.")
-    log_from_request(db, request, current_user, "classroom.delete", "classroom", resource_id=room.id)
-    db.delete(room)
-    db.commit()
-    return {"success": True, "message": "Classroom deleted."}
+    return {"success": True, "message": "Class teacher assignment removed."}

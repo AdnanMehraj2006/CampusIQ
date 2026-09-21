@@ -94,6 +94,14 @@ export interface SubjectAssignment {
   faculty_name?: string | null
 }
 
+export interface ClassTeacher {
+  id: number
+  faculty_id: number
+  section: string
+  semester_id?: number | null
+  faculty_name?: string | null
+}
+
 export interface Department {
   id: number
   name: string

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, List, Optional
 
-from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import TimestampMixin
@@ -13,6 +13,23 @@ from app.database import Base
 if TYPE_CHECKING:
     from app.models.people import Faculty, Student
     from app.models.subject import Subject
+
+
+class ClassTeacher(Base, TimestampMixin):
+    """Faculty responsibility for class/section oversight."""
+
+    __tablename__ = "class_teachers"
+    __table_args__ = (
+        UniqueConstraint("faculty_id", "section", "semester_id", name="uq_class_teacher"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    faculty_id: Mapped[int] = mapped_column(ForeignKey("faculty.id", ondelete="CASCADE"), nullable=False, index=True)
+    section: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    semester_id: Mapped[Optional[int]] = mapped_column(ForeignKey("semesters.id", ondelete="SET NULL"), nullable=True)
+
+    faculty: Mapped["Faculty"] = relationship()
+    semester: Mapped[Optional["Semester"]] = relationship()
 
 
 class Department(Base, TimestampMixin):
