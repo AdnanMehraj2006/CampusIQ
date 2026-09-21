@@ -14,7 +14,7 @@ from app.core.deps import (
 from app.core.exceptions import BadRequestError, ConflictError, ForbiddenError, NotFoundError
 from app.core.permissions import Permission, Role, permissions_for_role
 from app.database import get_db
-from app.models.academic import Department
+from app.models.academic import Course, Department, Semester
 from app.models.people import Faculty, Student
 from app.models.user import User, UserStatus
 from app.schemas import (
@@ -86,6 +86,90 @@ def _faculty_out(db: Session, f: Faculty) -> dict:
         "subject_count": subject_count,
         "is_hod": bool(f.department and f.department.hod_id == f.id),
     }
+
+
+# ---------------------------------------------------------------------------
+# Shared business rules
+# ---------------------------------------------------------------------------
+
+#: At most two Class Representatives per Department + Semester + Section.
+MAX_CRS_PER_CLASS = 2
+
+
+def _validate_academic_context(db: Session, payload: object) -> None:
+    """Authoritative backend validation of create/update academic fields.
+
+    Frontend selects constrain choices for convenience, but this is the
+    authority: an invalid section/course/semester is rejected here.
+    """
+    from app.models.academic import Section
+
+    section_name = getattr(payload, "section", None)
+    if section_name:
+        active = {s[0] for s in db.query(Section.name).filter(Section.is_active.is_(True)).all()}
+        # Bootstrap-friendly: only enforce once the institution has defined sections.
+        if active and section_name not in active:
+            raise BadRequestError(
+                f"Section '{section_name}' does not exist. Create it under Sections first."
+            )
+
+    course_id = getattr(payload, "course_id", None)
+    if course_id:
+        course = db.get(Course, course_id)
+        if not course:
+            raise BadRequestError("Course does not exist.")
+        dept_id = getattr(payload, "department_id", None)
+        if dept_id and course.department_id != dept_id:
+            raise BadRequestError("Selected course does not belong to the chosen department.")
+
+    semester_id = getattr(payload, "semester_id", None)
+    if semester_id:
+        if not db.get(Semester, semester_id):
+            raise BadRequestError("Semester does not exist.")
+
+
+def _cr_count_in_class(
+    db: Session,
+    department_id: int | None,
+    semester_id: int | None,
+    section: str,
+    exclude_student_id: int | None = None,
+) -> int:
+    """Count existing CRs for the same Department + Semester + Section."""
+    q = (
+        db.query(Student.id)
+        .join(User, User.id == Student.user_id)
+        .filter(User.role == str(Role.CR))
+        .filter(Student.department_id == department_id)
+        .filter(Student.semester_id == semester_id)
+        .filter(Student.section == section)
+    )
+    if exclude_student_id is not None:
+        q = q.filter(Student.id != exclude_student_id)
+    return q.count()
+
+
+def _assert_can_assign_cr(db: Session, current_user: User, student: Student) -> None:
+    """Authorize a CR appointment and enforce the server-side 2-CR limit.
+
+    A CR assignment is bound to the student's Department + Semester + Section.
+    Only admins (institution-wide) and HODs (own department only) may appoint.
+    """
+    if current_user.role == Role.HOD:
+        check_department_scope(current_user, student.department_id)
+    elif current_user.role != Role.ADMIN:
+        raise ForbiddenError("Only administrators and heads of department can appoint CRs.")
+    if student.user is None:
+        raise BadRequestError("This student has no linked user account.")
+    if student.user.role == Role.CR:
+        return  # already a CR - idempotent re-assignment
+    existing = _cr_count_in_class(db, student.department_id, student.semester_id, student.section)
+    if existing >= MAX_CRS_PER_CLASS:
+        raise ConflictError(
+            f"This class already has the maximum of {MAX_CRS_PER_CLASS} CRs "
+            "for the same Department + Semester + Section. "
+            "Remove or reassign an existing CR first."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -164,8 +248,19 @@ def _assert_student_scope(db: Session, current_user: User, student: Student) -> 
             raise ForbiddenError("You can only access your own information.")
         return
     if current_user.role == Role.CR:
-        if current_user.student_profile is None or current_user.student_profile.section != student.section:
-            raise ForbiddenError("You can only view students in your own section.")
+        me = current_user.student_profile
+        if me is None:
+            raise ForbiddenError("Your account has no student profile.")
+        # A CR may only see students within their own class context.
+        if (
+            me.department_id != student.department_id
+            or me.semester_id != student.semester_id
+            or me.section != student.section
+        ):
+            raise ForbiddenError(
+                "You can only view students in your own class "
+                "(department, semester and section)."
+            )
         return
     if current_user.role == Role.HOD:
         check_department_scope(current_user, student.department_id)
@@ -199,16 +294,19 @@ def create_student(
     if not dept:
         raise BadRequestError("Department does not exist.")
 
+    _validate_academic_context(db, payload)
+
     if db.query(Student).filter(Student.enrollment_number == payload.enrollment_number).first():
         raise ConflictError("A student with this enrollment number already exists.")
 
-    role = Role.CR if payload.is_cr else Role.STUDENT
+    # CR is a Student account with extra functionality; the role is granted
+    # below only if the class quota allows it.
     user, plaintext = auth_service.create_user_account(
         db,
         name=payload.name,
         email=payload.email,
         college_id=payload.college_id,
-        role=role,
+        role=Role.STUDENT,
         password=payload.password,
         phone=payload.phone,
     )
@@ -226,9 +324,16 @@ def create_student(
     db.add(student)
     db.commit()
     db.refresh(student)
+    if payload.is_cr:
+        _assert_can_assign_cr(db, current_user, student)
+        user.role = Role.CR
+        db.commit()
+        db.refresh(student)
     log_from_request(db, request, current_user, "student.create", "student", resource_id=student.id)
     result = _student_out(db, student)
-    if not auth_service.settings.is_production:
+    # Surface an auto-generated password exactly once so the admin can share it
+    # securely. Only the hash is stored; this is the only time it is exposed.
+    if not payload.password:
         result["initial_password"] = plaintext
     return result
 
@@ -247,6 +352,8 @@ def update_student(
     if current_user.role == Role.HOD:
         check_department_scope(current_user, s.department_id)
 
+    _validate_academic_context(db, payload)
+
     data = payload.model_dump(exclude_unset=True)
     is_cr = data.pop("is_cr", None)
     for k, v in data.items():
@@ -255,7 +362,12 @@ def update_student(
         else:
             setattr(s, k, v)
     if is_cr is not None:
-        s.user.role = Role.CR if is_cr else Role.STUDENT
+        if is_cr:
+            # Enforce the same quota/scoping rules as the dedicated CR endpoint.
+            _assert_can_assign_cr(db, current_user, s)
+            s.user.role = Role.CR
+        else:
+            s.user.role = Role.STUDENT
     db.commit()
     db.refresh(s)
     log_from_request(db, request, current_user, "student.update", "student", resource_id=s.id)
@@ -281,6 +393,88 @@ def delete_student(
         db.delete(user)
     db.commit()
     return {"success": True, "message": "Student removed."}
+
+
+# ---------------------------------------------------------------------------
+# Class Representative (CR) assignment
+# ---------------------------------------------------------------------------
+# A CR is a normal Student account whose ``User.role == 'cr'``. The assignment
+# is bound to the student's Department + Semester + Section and at most
+# ``MAX_CRS_PER_CLASS`` CRs are allowed per class. GR is *not* a separate role:
+# it is informal shorthand for a female CR and is not modelled anywhere.
+
+
+@router.post("/students/{student_id}/cr", response_model=StudentOut)
+def assign_cr(
+    student_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.MANAGE_STUDENTS)),
+):
+    """Appoint a student as CR for their Department + Semester + Section."""
+    s = db.get(Student, student_id)
+    if not s:
+        raise NotFoundError("Student not found.")
+    _assert_can_assign_cr(db, current_user, s)
+    if s.user is not None and s.user.role != Role.CR:
+        s.user.role = Role.CR
+        db.commit()
+        db.refresh(s)
+    log_from_request(db, request, current_user, "cr.assign", "student", resource_id=s.id)
+    return _student_out(db, s)
+
+
+@router.delete("/students/{student_id}/cr", response_model=StudentOut)
+def remove_cr(
+    student_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.MANAGE_STUDENTS)),
+):
+    """Remove CR status; the account keeps working as a normal Student."""
+    s = db.get(Student, student_id)
+    if not s:
+        raise NotFoundError("Student not found.")
+    if current_user.role == Role.HOD:
+        check_department_scope(current_user, s.department_id)
+    elif current_user.role != Role.ADMIN:
+        raise ForbiddenError("Only administrators and heads of department can remove CRs.")
+    if s.user is not None and s.user.role == Role.CR:
+        s.user.role = Role.STUDENT
+        db.commit()
+        db.refresh(s)
+    log_from_request(db, request, current_user, "cr.remove", "student", resource_id=s.id)
+    return _student_out(db, s)
+
+
+@router.get("/cr-assignments", response_model=dict)
+def list_cr_assignments(
+    department_id: int | None = None,
+    semester_id: int | None = None,
+    section: str | None = None,
+    db: Session = Depends(get_db),
+    page_params: dict = Depends(pagination_params),
+    current_user: User = Depends(require_permission(Permission.VIEW_STUDENTS)),
+):
+    """List current CRs. HODs only see their own department; admins see all."""
+    q = db.query(Student).join(User, User.id == Student.user_id).filter(User.role == str(Role.CR))
+    if current_user.role == Role.HOD and current_user.faculty_profile:
+        q = q.filter(Student.department_id == current_user.faculty_profile.department_id)
+    if department_id:
+        q = q.filter(Student.department_id == department_id)
+    if semester_id is not None:
+        q = q.filter(Student.semester_id == semester_id)
+    if section:
+        q = q.filter(Student.section == section)
+    if page_params["q"]:
+        q = q.filter(
+            User.name.ilike(f"%{page_params['q']}%")
+            | User.email.ilike(f"%{page_params['q']}%")
+            | Student.enrollment_number.ilike(f"%{page_params['q']}%")
+        )
+    total = q.count()
+    rows = q.order_by(User.name).offset(page_params["offset"]).limit(page_params["page_size"]).all()
+    return paginated([_student_out(db, s) for s in rows], page_params["page"], page_params["page_size"], total)
 
 
 # ---------------------------------------------------------------------------
@@ -370,7 +564,9 @@ def create_faculty(
         db.refresh(dept)
     log_from_request(db, request, current_user, "faculty.create", "faculty", resource_id=faculty.id)
     result = _faculty_out(db, faculty)
-    if not auth_service.settings.is_production:
+    # Surface an auto-generated password exactly once so the admin can share it
+    # securely. Only the hash is stored; this is the only time it is exposed.
+    if not payload.password:
         result["initial_password"] = plaintext
     return result
 

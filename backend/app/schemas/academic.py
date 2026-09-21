@@ -115,6 +115,30 @@ class SemesterOut(ORMModel):
     course_id: Optional[int] = None
 
 
+# ---- Sections ----
+class SectionBase(BaseModel):
+    name: str = Field(..., min_length=1, max_length=10)
+    description: Optional[str] = Field(None, max_length=200)
+
+
+class SectionCreate(SectionBase):
+    is_active: bool = True
+
+
+class SectionUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=10)
+    description: Optional[str] = Field(None, max_length=200)
+    is_active: Optional[bool] = None
+
+
+class SectionOut(ORMModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    is_active: bool
+    student_count: Optional[int] = None
+
+
 # ---- Subjects ----
 class SubjectBase(BaseModel):
     name: str = Field(..., min_length=2, max_length=150)

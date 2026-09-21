@@ -9,6 +9,7 @@ import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Modal, ConfirmDialog } from '@/components/ui/modal'
+import { CredentialsModal, CreatedCredentials } from '@/components/ui/credentials-modal'
 import { Field } from '@/components/ui/page-header'
 import {
   TableWrapper,
@@ -30,6 +31,7 @@ export default function AdminFaculty() {
   const [departmentId, setDepartmentId] = useState('')
   const [editing, setEditing] = useState<Faculty | null>(null)
   const [deactivating, setDeactivating] = useState<Faculty | null>(null)
+  const [credentials, setCredentials] = useState<CreatedCredentials | null>(null)
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin-faculty', page, search, departmentId],
@@ -55,6 +57,39 @@ export default function AdminFaculty() {
     },
     onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Failed to delete faculty'))
+    },
+  })
+
+  const createMutation = useMutation({
+    mutationFn: (payload: Record<string, unknown>) => api.createFaculty(payload),
+    onSuccess: (created) => {
+      toast.success('Faculty created')
+      refresh()
+      setEditing(null)
+      // Surface the auto-generated password exactly once.
+      if (created?.initial_password) {
+        setCredentials({
+          name: created.name,
+          identifier: created.email,
+          password: created.initial_password,
+        })
+      }
+    },
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Failed to create faculty'))
+    },
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: Record<string, unknown> }) =>
+      api.updateFaculty(id, payload),
+    onSuccess: () => {
+      toast.success('Faculty updated')
+      refresh()
+      setEditing(null)
+    },
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Failed to update faculty'))
     },
   })
 
@@ -87,7 +122,7 @@ export default function AdminFaculty() {
               </option>
             ))}
           </Select>
-          <Button onClick={() => setEditing({} as any)} className="flex items-center gap-2">
+          <Button onClick={() => setEditing({} as Faculty)} className="flex items-center gap-2">
             <Plus className="w-4 h-4" />
             Add Faculty
           </Button>
@@ -209,17 +244,14 @@ export default function AdminFaculty() {
         key={editing?.id ?? 'closed'}
         faculty={editing}
         departments={departments || []}
+        submitting={createMutation.isPending || updateMutation.isPending}
         onClose={() => setEditing(null)}
         onSubmit={(payload) => {
           if (editing) {
-            api.updateFaculty(editing.id, payload)
-            toast.success('Faculty updated')
+            updateMutation.mutate({ id: editing.id, payload })
           } else {
-            api.createFaculty(payload)
-            toast.success('Faculty created')
+            createMutation.mutate(payload)
           }
-          refresh()
-          setEditing(null)
         }}
       />
 
@@ -237,6 +269,8 @@ export default function AdminFaculty() {
         confirmLabel="Delete"
         destructive
       />
+
+      <CredentialsModal credentials={credentials} onClose={() => setCredentials(null)} />
     </div>
   )
 }
@@ -244,13 +278,15 @@ export default function AdminFaculty() {
 function FacultyModal({
   faculty,
   departments,
+  submitting,
   onClose,
   onSubmit,
 }: {
   faculty: Faculty | null
   departments: Department[]
+  submitting?: boolean
   onClose: () => void
-  onSubmit: (payload: Partial<Faculty>) => void
+  onSubmit: (payload: Record<string, unknown>) => void
 }) {
   const [name, setName] = useState(faculty?.name ?? '')
   const [email, setEmail] = useState(faculty?.email ?? '')
@@ -267,7 +303,7 @@ function FacultyModal({
       title={faculty ? 'Edit faculty' : 'Add faculty'}
       footer={
         <>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={submitting}>
             Cancel
           </Button>
           <Button
@@ -278,7 +314,7 @@ function FacultyModal({
               department_id: Number(departmentId),
               college_id: collegeId.trim() || undefined,
             })}
-            disabled={!canSubmit}
+            disabled={!canSubmit || submitting}
           >
             {faculty ? 'Save changes' : 'Create faculty'}
           </Button>
@@ -293,7 +329,7 @@ function FacultyModal({
           <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         </Field>
         <Field label="College ID">
-          <Input value={collegeId} onChange={(e) => setCollegeId(e.target.value)} />
+          <Input value={collegeId} onChange={(e) => setCollegeId(e.target.value)} placeholder="Leave blank to auto-generate" />
         </Field>
         <Field label="Department" required>
           <Select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
@@ -314,6 +350,11 @@ function FacultyModal({
             <option value="Lecturer">Lecturer</option>
           </Select>
         </Field>
+        {!faculty && (
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            A secure temporary password is generated automatically and shown once after creation.
+          </p>
+        )}
       </div>
     </Modal>
   )

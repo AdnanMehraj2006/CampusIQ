@@ -42,12 +42,26 @@ COUNTED = (AttendanceStatus.PRESENT, AttendanceStatus.LATE, AttendanceStatus.ABS
 # ---------------------------------------------------------------------------
 
 
-def students_in_section(db: Session, section: str, subject_id: Optional[int] = None) -> list[Student]:
-    """Students in a section, optionally restricted to the subject's semester."""
+def students_in_section(
+    db: Session,
+    section: str,
+    subject_id: Optional[int] = None,
+    department_id: Optional[int] = None,
+    semester_id: Optional[int] = None,
+) -> list[Student]:
+    """Students in a section, optionally restricted to the subject's semester.
+
+    ``department_id``/``semester_id`` narrow the class context (used to keep a
+    CR's view within their own Department + Semester + Section).
+    """
     q = db.query(Student).join(User, User.id == Student.user_id).filter(
         Student.section == section,
         User.status == "active",
     )
+    if department_id is not None:
+        q = q.filter(Student.department_id == department_id)
+    if semester_id is not None:
+        q = q.filter(Student.semester_id == semester_id)
     if subject_id is not None:
         subject = db.get(Subject, subject_id)
         if subject is None:
@@ -432,14 +446,28 @@ def predict_attendance(
 # ---------------------------------------------------------------------------
 
 
-def class_attendance_overview(db: Session, section: str, subject_id: Optional[int] = None) -> dict:
-    """Aggregate attendance for a section, per subject."""
-    roster = students_in_section(db, section)
+def class_attendance_overview(
+    db: Session,
+    section: str,
+    subject_id: Optional[int] = None,
+    department_id: Optional[int] = None,
+    semester_id: Optional[int] = None,
+) -> dict:
+    """Aggregate attendance for a section, per subject.
+
+    When ``department_id``/``semester_id`` are given the roster is restricted to
+    that single class context (Department + Semester + Section).
+    """
+    roster = students_in_section(db, section, department_id=department_id, semester_id=semester_id)
     if not roster:
         return {"section": section, "subjects": [], "overall": 0.0, "students": []}
 
     subject_ids = [s.id for s in faculty_subjects_by_section(db, section)] if not subject_id else [subject_id]
-    subjects = db.query(Subject).filter(Subject.id.in_(subject_ids)).all() if subject_ids else []
+    subjects_q = db.query(Subject).filter(Subject.id.in_(subject_ids)) if subject_ids else None
+    if subjects_q is not None and department_id is not None:
+        # Keep the CR's view inside their own department's subjects.
+        subjects_q = subjects_q.filter(Subject.department_id == department_id)
+    subjects = subjects_q.all() if subjects_q is not None else []
 
     rows = (
         db.query(

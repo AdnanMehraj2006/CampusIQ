@@ -506,7 +506,10 @@ def cr_dashboard(
         raise ForbiddenError("No student profile is linked to your account.")
     st = current_user.student_profile
 
-    overview = attendance_service.class_attendance_overview(db, st.section)
+    # Scope the class view to the CR's own Department + Semester + Section.
+    overview = attendance_service.class_attendance_overview(
+        db, st.section, department_id=st.department_id, semester_id=st.semester_id
+    )
     timetable = (
         db.query(TimetableEntry).filter(TimetableEntry.section == st.section).order_by(TimetableEntry.day, TimetableEntry.period).all()
     )

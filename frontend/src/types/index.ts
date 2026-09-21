@@ -131,6 +131,16 @@ export interface Semester {
   academic_session_id?: number | null
 }
 
+export interface Section {
+  id: number
+  name: string
+  description?: string | null
+  is_active: boolean
+  student_count?: number | null
+  created_at?: string | null
+  updated_at?: string | null
+}
+
 export interface AcademicSession {
   id: number
   name: string

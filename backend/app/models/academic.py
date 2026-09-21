@@ -77,6 +77,17 @@ class AcademicSession(Base, TimestampMixin):
     semesters: Mapped[List["Semester"]] = relationship(back_populates="academic_session", cascade="all, delete-orphan")
 
 
+class Section(Base, TimestampMixin):
+    """Academic section for class grouping (e.g., A, B, C)."""
+
+    __tablename__ = "sections"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(10), unique=True, nullable=False, index=True)
+    description: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
+
+
 class Semester(Base, TimestampMixin):
     __tablename__ = "semesters"
 

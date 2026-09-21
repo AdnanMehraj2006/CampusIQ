@@ -10,12 +10,13 @@ import { Calendar } from 'lucide-react'
 export default function HODTimetable() {
   const [section, setSection] = useState('')
 
-  const { data: students } = useQuery({
-    queryKey: ['hod-students-sections'],
-    queryFn: () => api.getStudents({ pageSize: 100 }),
+  // Section options always come from the complete database list.
+  const { data: sectionsData } = useQuery({
+    queryKey: ['all-sections'],
+    queryFn: () => api.getAllSections(),
   })
 
-  const sections = Array.from(new Set((students?.items || []).map((s) => s.section).filter(Boolean)))
+  const sections = (sectionsData || []).map((s) => s.name)
 
   const { data: all, isLoading, isError, refetch } = useQuery({
     queryKey: ['hod-timetable'],

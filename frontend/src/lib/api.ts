@@ -13,6 +13,7 @@ import {
   Department,
   Course,
   Semester,
+  Section,
   AcademicSession,
   SystemSetting,
   CRRequest,
@@ -672,7 +673,7 @@ class ApiClient {
   }
 
   createStudent = async (data: Record<string, unknown>) => {
-    return this.request<Student>('/students', {
+    return this.request<Student & { initial_password?: string }>('/students', {
       method: 'POST',
       body: JSON.stringify(data),
     })
@@ -691,6 +692,36 @@ class ApiClient {
     })
   }
 
+  // CR (Class Representative) assignment - CRs are students with extra access.
+  assignCR = async (studentId: number) => {
+    return this.request<Student>(`/students/${studentId}/cr`, {
+      method: 'POST',
+    })
+  }
+
+  removeCR = async (studentId: number) => {
+    return this.request<Student>(`/students/${studentId}/cr`, {
+      method: 'DELETE',
+    })
+  }
+
+  getCRAssignments = async (params: {
+    page?: number
+    pageSize?: number
+    q?: string
+    departmentId?: number
+    semesterId?: number
+    section?: string
+  } = {}) => {
+    const { page = 1, pageSize = 50, q, departmentId, semesterId, section } = params
+    const parts = [`page=${page}`, `page_size=${pageSize}`]
+    if (q) parts.push(`q=${encodeURIComponent(q)}`)
+    if (departmentId) parts.push(`department_id=${departmentId}`)
+    if (semesterId) parts.push(`semester_id=${semesterId}`)
+    if (section) parts.push(`section=${encodeURIComponent(section)}`)
+    return this.request<PaginatedResponse<Student>>(`/cr-assignments?${parts.join('&')}`)
+  }
+
   // Faculty (Admin/HOD)
   getFaculty = async (params: {
     page?: number
@@ -706,7 +737,7 @@ class ApiClient {
   }
 
   createFaculty = async (data: Record<string, unknown>) => {
-    return this.request<Faculty>('/faculty', {
+    return this.request<Faculty & { initial_password?: string }>('/faculty', {
       method: 'POST',
       body: JSON.stringify(data),
     })
@@ -763,7 +794,7 @@ class ApiClient {
     })
   }
 
-  // Courses & semesters (Admin)
+  // Courses & semesters & sections (Admin)
   getCourses = async (params: { page?: number; pageSize?: number; q?: string; departmentId?: number } = {}) => {
     const { page = 1, pageSize = 50, q, departmentId } = params
     const parts = [`page=${page}`, `page_size=${pageSize}`]
@@ -796,6 +827,38 @@ class ApiClient {
     return this.request<Semester[]>(
       courseId ? `/semesters?course_id=${courseId}` : '/semesters'
     )
+  }
+
+  getSections = async (params: { page?: number; pageSize?: number; q?: string; isActive?: boolean } = {}) => {
+    const { page = 1, pageSize = 50, q, isActive } = params
+    const parts = [`page=${page}`, `page_size=${pageSize}`]
+    if (q) parts.push(`q=${encodeURIComponent(q)}`)
+    if (isActive !== undefined) parts.push(`is_active=${isActive}`)
+    return this.request<PaginatedResponse<Section>>(`/sections?${parts.join('&')}`)
+  }
+
+  getAllSections = async () => {
+    return this.request<Section[]>('/sections/all')
+  }
+
+  createSection = async (data: Partial<Section>) => {
+    return this.request<Section>('/sections', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  updateSection = async (id: number, data: Partial<Section>) => {
+    return this.request<Section>(`/sections/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  deleteSection = async (id: number) => {
+    return this.request(`/sections/${id}`, {
+      method: 'DELETE',
+    })
   }
 
   getAcademicSessions = async () => {

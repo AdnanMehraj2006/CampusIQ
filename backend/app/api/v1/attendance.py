@@ -69,11 +69,14 @@ def list_attendance(
             raise ForbiddenError("No student profile is linked to your account.")
         if viewer.role == Role.STUDENT:
             q = q.filter(Attendance.student_id == me.id)
-        else:  # CR: may view their section's aggregate rows
-            q = q.join(Student, Student.id == Attendance.student_id)
+        else:  # CR: view attendance for their own Department + Semester + Section
             if section and section != me.section:
                 raise ForbiddenError("You can only view attendance for your own section.")
-            q = q.filter(Student.section == me.section)
+            q = q.join(Student, Student.id == Attendance.student_id).filter(
+                Student.department_id == me.department_id,
+                Student.semester_id == me.semester_id,
+                Student.section == me.section,
+            )
     elif viewer.role == Role.FACULTY:
         if viewer.faculty_profile is None:
             raise ForbiddenError("No faculty profile is linked to your account.")
@@ -221,8 +224,15 @@ def section_attendance_analytics(
     current_user: User = Depends(require_permission(Permission.VIEW_CLASS_ATTENDANCE)),
 ):
     if current_user.role == Role.CR:
-        if current_user.student_profile is None or current_user.student_profile.section != section:
-            raise ForbiddenError("You can only view analytics for your own section.")
+        me = current_user.student_profile
+        if me is None:
+            raise ForbiddenError("Your account has no student profile.")
+        # A CR may only view their own class context (Department + Semester + Section).
+        if me.section != section or me.department_id is None or me.semester_id is None:
+            raise ForbiddenError("You can only view analytics for your own class.")
+        return attendance_service.class_attendance_overview(
+            db, section, subject_id, department_id=me.department_id, semester_id=me.semester_id
+        )
     if current_user.role == Role.FACULTY:
         from app.models.subject import SubjectAssignment
 

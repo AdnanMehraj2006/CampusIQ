@@ -50,6 +50,7 @@ from app.models import (  # noqa: E402
     ProjectStatus,
     RefreshToken,
     Semester,
+    Section,
     Student,
     Subject,
     SubjectAssignment,
@@ -195,6 +196,16 @@ def seed(db: Session) -> dict:
             db.refresh(course)
         courses[code] = course
     created["courses"] = len(courses)
+
+    # ------------------------------------------------------------------
+    # Sections (canonical section values - never hardcoded in the UI)
+    # ------------------------------------------------------------------
+    for sec_name, sec_desc in [("A", "Section A"), ("B", "Section B")]:
+        sec = db.query(Section).filter(Section.name == sec_name).first()
+        if not sec:
+            db.add(Section(name=sec_name, description=sec_desc, is_active=True))
+            db.commit()
+    created["sections"] = db.query(Section).count()
 
     # ------------------------------------------------------------------
     # Users: admin, HODs, faculty

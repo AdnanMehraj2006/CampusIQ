@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { api } from '@/lib/api'
+import { useQuery, useMutation } from '@tanstack/react-query'
+import { api, getApiErrorMessage } from '@/lib/api'
 import { PageHeader } from '@/components/ui/page-header'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -16,13 +16,16 @@ import {
   TableCell,
 } from '@/components/ui/table'
 import { LoadingState, EmptyState, ErrorState } from '@/components/ui/states'
-import { Search, ChevronLeft, ChevronRight, GraduationCap } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight, GraduationCap, UserCheck, UserX } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/modal'
+import { toast } from 'react-hot-toast'
 
 export default function HODStudents() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [section, setSection] = useState('')
+  const [crRemoving, setCrRemoving] = useState<number | null>(null)
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['hod-students', page, search, section],
@@ -30,9 +33,31 @@ export default function HODStudents() {
       api.getStudents({ page, pageSize: 15, q: search || undefined, section: section || undefined }),
   })
 
+  // Section options always come from the complete database list - never from
+  // the currently displayed rows, so filtering can never shrink the options.
+  const { data: sectionsData } = useQuery({
+    queryKey: ['all-sections'],
+    queryFn: () => api.getAllSections(),
+  })
+
+  const assignCRMutation = useMutation({
+    mutationFn: (id: number) => api.assignCR(id),
+    onSuccess: () => toast.success('Student appointed as CR'),
+    onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'Failed to assign CR')),
+  })
+
+  const removeCRMutation = useMutation({
+    mutationFn: (id: number) => api.removeCR(id),
+    onSuccess: () => {
+      toast.success('CR status removed')
+      setCrRemoving(null)
+    },
+    onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'Failed to remove CR')),
+  })
+
   const students = data?.items || []
   const pagination = data?.pagination
-  const sections = Array.from(new Set(students.map((s) => s.section).filter(Boolean)))
+  const sections = sectionsData?.map((s) => s.name) || []
 
   return (
     <div className="space-y-6">
@@ -77,7 +102,9 @@ export default function HODStudents() {
                 <TableHead>Enrollment</TableHead>
                 <TableHead>Section</TableHead>
                 <TableHead>Semester</TableHead>
+                <TableHead>Role</TableHead>
                 <TableHead>Attendance</TableHead>
+                <TableHead className="text-right">CR</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -91,7 +118,34 @@ export default function HODStudents() {
                   <TableCell>{s.section}</TableCell>
                   <TableCell>{s.semester_number ?? '-'}</TableCell>
                   <TableCell>
+                    <Badge variant={s.role === 'CR' ? 'warning' : 'info'}>{s.role}</Badge>
+                  </TableCell>
+                  <TableCell>
                     <AttendanceBadge percentage={s.attendance_percentage} />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-end gap-1">
+                      {s.role === 'CR' ? (
+                        <button
+                          onClick={() => setCrRemoving(s.id)}
+                          className="rounded-lg p-1.5 text-amber-600 transition-colors hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-900/20"
+                          aria-label="Remove CR"
+                          title="Remove CR status"
+                        >
+                          <UserX className="h-4 w-4" />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => assignCRMutation.mutate(s.id)}
+                          disabled={assignCRMutation.isPending}
+                          className="rounded-lg p-1.5 text-green-600 transition-colors hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/20"
+                          aria-label="Appoint as CR"
+                          title="Appoint as Class Representative (own department only)"
+                        >
+                          <UserCheck className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -127,6 +181,16 @@ export default function HODStudents() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={crRemoving !== null}
+        onClose={() => setCrRemoving(null)}
+        onConfirm={() => crRemoving !== null && removeCRMutation.mutate(crRemoving)}
+        title="Remove CR status"
+        message="The account keeps working as a normal student."
+        confirmLabel="Remove CR"
+        destructive
+      />
     </div>
   )
 }

@@ -9,6 +9,7 @@ import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Modal, ConfirmDialog } from '@/components/ui/modal'
+import { CredentialsModal, CreatedCredentials } from '@/components/ui/credentials-modal'
 import { Field } from '@/components/ui/page-header'
 import {
   TableWrapper,
@@ -20,7 +21,7 @@ import {
   TableCell,
 } from '@/components/ui/table'
 import { LoadingState, EmptyState, ErrorState } from '@/components/ui/states'
-import { Search, ChevronLeft, ChevronRight, GraduationCap, Plus, Edit2, ShieldBan, ShieldCheck } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight, GraduationCap, Plus, Edit2, ShieldBan, ShieldCheck, UserCheck, UserX } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 
 export default function AdminStudents() {
@@ -31,6 +32,8 @@ export default function AdminStudents() {
   const [section, setSection] = useState('')
   const [editing, setEditing] = useState<Student | null>(null)
   const [deactivating, setDeactivating] = useState<Student | null>(null)
+  const [credentials, setCredentials] = useState<CreatedCredentials | null>(null)
+  const [crRemoving, setCrRemoving] = useState<Student | null>(null)
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin-students', page, search, departmentId, section],
@@ -43,7 +46,7 @@ export default function AdminStudents() {
     queryFn: () => api.getAllDepartments(),
   })
 
-  const { data: courses, refetch: refetchCourses } = useQuery({
+  const { data: courses } = useQuery({
     queryKey: ['form-courses', departmentId],
     queryFn: () => api.getCourses({ departmentId: departmentId ? Number(departmentId) : undefined }),
     enabled: departmentId !== '',
@@ -54,8 +57,14 @@ export default function AdminStudents() {
     queryFn: () => api.getSemesters(),
   })
 
+  const { data: sectionsData } = useQuery({
+    queryKey: ['all-sections'],
+    queryFn: () => api.getAllSections(),
+  })
+
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-students'] })
+    queryClient.invalidateQueries({ queryKey: ['all-sections'] })
   }
 
   const deleteMutation = useMutation({
@@ -70,9 +79,65 @@ export default function AdminStudents() {
     },
   })
 
+  const createMutation = useMutation({
+    mutationFn: (payload: Record<string, unknown>) => api.createStudent(payload),
+    onSuccess: (created) => {
+      toast.success('Student created')
+      refresh()
+      setEditing(null)
+      // Surface the auto-generated password exactly once.
+      if (created?.initial_password) {
+        setCredentials({
+          name: created.name,
+          identifier: created.email,
+          password: created.initial_password,
+        })
+      }
+    },
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Failed to create student'))
+    },
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: Record<string, unknown> }) =>
+      api.updateStudent(id, payload),
+    onSuccess: () => {
+      toast.success('Student updated')
+      refresh()
+      setEditing(null)
+    },
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Failed to update student'))
+    },
+  })
+
+  const assignCRMutation = useMutation({
+    mutationFn: (id: number) => api.assignCR(id),
+    onSuccess: () => {
+      toast.success('Student appointed as CR')
+      refresh()
+    },
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Failed to assign CR'))
+    },
+  })
+
+  const removeCRMutation = useMutation({
+    mutationFn: (id: number) => api.removeCR(id),
+    onSuccess: () => {
+      toast.success('CR status removed')
+      refresh()
+      setCrRemoving(null)
+    },
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Failed to remove CR'))
+    },
+  })
+
   const students = data?.items || []
   const pagination = data?.pagination
-  const sections = Array.from(new Set(students.map((s) => s.section).filter(Boolean)))
+  const sections = sectionsData?.map((s) => s.name) || []
 
   return (
     <div className="space-y-6">
@@ -108,7 +173,7 @@ export default function AdminStudents() {
               </option>
             ))}
           </Select>
-          <Button onClick={() => setEditing({} as any)} className="flex items-center gap-2">
+          <Button onClick={() => setEditing({} as Student)} className="flex items-center gap-2">
             <Plus className="w-4 h-4" />
             Add Student
           </Button>
@@ -165,14 +230,36 @@ export default function AdminStudents() {
                         onClick={() => setEditing(s)}
                         className="rounded-lg p-1.5 text-blue-600 transition-colors hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
                         aria-label="Edit student"
+                        title="Edit student"
                       >
                         <Edit2 className="h-4 w-4" />
                       </button>
+                      {s.role === 'CR' ? (
+                        <button
+                          onClick={() => setCrRemoving(s)}
+                          className="rounded-lg p-1.5 text-amber-600 transition-colors hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-900/20"
+                          aria-label="Remove CR"
+                          title="Remove CR status"
+                        >
+                          <UserX className="h-4 w-4" />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => assignCRMutation.mutate(s.id)}
+                          disabled={assignCRMutation.isPending}
+                          className="rounded-lg p-1.5 text-green-600 transition-colors hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/20"
+                          aria-label="Appoint as CR"
+                          title="Appoint as Class Representative"
+                        >
+                          <UserCheck className="h-4 w-4" />
+                        </button>
+                      )}
                       {s.status === 'active' ? (
                         <button
                           onClick={() => setDeactivating(s)}
                           className="rounded-lg p-1.5 text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
                           aria-label="Deactivate student"
+                          title="Delete student"
                         >
                           <ShieldBan className="h-4 w-4" />
                         </button>
@@ -185,6 +272,7 @@ export default function AdminStudents() {
                           }}
                           className="rounded-lg p-1.5 text-green-600 transition-colors hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/20"
                           aria-label="Activate student"
+                          title="Activate student"
                         >
                           <ShieldCheck className="h-4 w-4" />
                         </button>
@@ -232,17 +320,15 @@ export default function AdminStudents() {
         departments={departments || []}
         courses={courses?.items || []}
         semesters={semesters || []}
+        sections={sections}
+        submitting={createMutation.isPending || updateMutation.isPending}
         onClose={() => setEditing(null)}
         onSubmit={(payload) => {
           if (editing) {
-            api.updateStudent(editing.id, payload)
-            toast.success('Student updated')
+            updateMutation.mutate({ id: editing.id, payload })
           } else {
-            api.createStudent(payload)
-            toast.success('Student created')
+            createMutation.mutate(payload)
           }
-          refresh()
-          setEditing(null)
         }}
       />
 
@@ -260,6 +346,23 @@ export default function AdminStudents() {
         confirmLabel="Delete"
         destructive
       />
+
+      <ConfirmDialog
+        open={!!crRemoving}
+        onClose={() => setCrRemoving(null)}
+        onConfirm={() => crRemoving && removeCRMutation.mutate(crRemoving.id)}
+        title="Remove CR status"
+        message={
+          <>
+            Remove <strong>{crRemoving?.name}</strong> as Class Representative? The account keeps
+            working as a normal student.
+          </>
+        }
+        confirmLabel="Remove CR"
+        destructive
+      />
+
+      <CredentialsModal credentials={credentials} onClose={() => setCredentials(null)} />
     </div>
   )
 }
@@ -269,6 +372,8 @@ function StudentModal({
   departments,
   courses,
   semesters,
+  sections,
+  submitting,
   onClose,
   onSubmit,
 }: {
@@ -276,8 +381,10 @@ function StudentModal({
   departments: Department[]
   courses: Course[]
   semesters: Semester[]
+  sections: string[]
+  submitting?: boolean
   onClose: () => void
-  onSubmit: (payload: Partial<Student>) => void
+  onSubmit: (payload: Record<string, unknown>) => void
 }) {
   const [name, setName] = useState(student?.name ?? '')
   const [email, setEmail] = useState(student?.email ?? '')
@@ -285,7 +392,7 @@ function StudentModal({
   const [departmentId, setDepartmentId] = useState(student?.department_id?.toString() ?? '')
   const [courseId, setCourseId] = useState(student?.course_id?.toString() ?? '')
   const [semesterId, setSemesterId] = useState(student?.semester_id?.toString() ?? '')
-  const [section, setSection] = useState(student?.section ?? 'A')
+  const [section, setSection] = useState(student?.section ?? '')
   const [admissionYear, setAdmissionYear] = useState(student?.admission_year?.toString() ?? '')
   const [collegeId, setCollegeId] = useState(student?.college_id ?? '')
 
@@ -300,7 +407,7 @@ function StudentModal({
     setSemesterId('')
   }
 
-  const canSubmit = name.trim() && email.trim() && enrollmentNumber.trim() && departmentId && admissionYear
+  const canSubmit = name.trim() && email.trim() && enrollmentNumber.trim() && departmentId && section && admissionYear
 
   return (
     <Modal
@@ -309,7 +416,7 @@ function StudentModal({
       title={student ? 'Edit student' : 'Add student'}
       footer={
         <>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={submitting}>
             Cancel
           </Button>
           <Button
@@ -320,11 +427,11 @@ function StudentModal({
               department_id: Number(departmentId),
               course_id: courseId ? Number(courseId) : undefined,
               semester_id: semesterId ? Number(semesterId) : undefined,
-              section: section.trim(),
+              section,
               admission_year: Number(admissionYear),
               college_id: collegeId.trim() || undefined,
             })}
-            disabled={!canSubmit}
+            disabled={!canSubmit || submitting}
           >
             {student ? 'Save changes' : 'Create student'}
           </Button>
@@ -342,7 +449,7 @@ function StudentModal({
           <Input value={enrollmentNumber} onChange={(e) => setEnrollmentNumber(e.target.value)} />
         </Field>
         <Field label="College ID">
-          <Input value={collegeId} onChange={(e) => setCollegeId(e.target.value)} />
+          <Input value={collegeId} onChange={(e) => setCollegeId(e.target.value)} placeholder="Leave blank to auto-generate" />
         </Field>
         <Field label="Department" required>
           <Select value={departmentId} onChange={(e) => handleDepartmentChange(e.target.value)}>
@@ -366,24 +473,34 @@ function StudentModal({
             </Select>
           </Field>
         )}
-        {courseId && (
-          <Field label="Semester">
-            <Select value={semesterId} onChange={(e) => setSemesterId(e.target.value)}>
-              <option value="">All semesters</option>
-              {semesters.map((s) => (
-                <option key={s.id} value={s.id}>
-                  Semester {s.semester_number}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        )}
+        <Field label="Semester">
+          <Select value={semesterId} onChange={(e) => setSemesterId(e.target.value)}>
+            <option value="">All semesters</option>
+            {semesters.map((s) => (
+              <option key={s.id} value={s.id}>
+                Semester {s.semester_number}
+              </option>
+            ))}
+          </Select>
+        </Field>
         <Field label="Section" required>
-          <Input value={section} onChange={(e) => setSection(e.target.value)} maxLength={10} />
+          <Select value={section} onChange={(e) => setSection(e.target.value)}>
+            <option value="">Select section</option>
+            {sections.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </Select>
         </Field>
         <Field label="Admission year" required>
           <Input type="number" value={admissionYear} onChange={(e) => setAdmissionYear(e.target.value)} min={2000} max={2100} />
         </Field>
+        {!student && (
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            A secure temporary password is generated automatically and shown once after creation.
+          </p>
+        )}
       </div>
     </Modal>
   )

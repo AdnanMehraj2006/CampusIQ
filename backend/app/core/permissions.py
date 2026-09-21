@@ -28,6 +28,8 @@ class Permission(StrEnum):
     # Academic structure
     MANAGE_DEPARTMENTS = "manage_departments"
     MANAGE_COURSES = "manage_courses"
+    MANAGE_SECTIONS = "manage_sections"
+    VIEW_SECTIONS = "view_sections"
     MANAGE_SUBJECTS = "manage_subjects"
     MANAGE_CLASSROOMS = "manage_classrooms"
     MANAGE_ACADEMIC_SESSIONS = "manage_academic_sessions"
@@ -93,6 +95,7 @@ ROLE_PERMISSIONS: dict[Role, set[Permission]] = {
         Permission.GENERATE_REPORTS,
         Permission.USE_AI_ASSISTANT,
         Permission.SUBMIT_FEEDBACK,
+        Permission.VIEW_SECTIONS,
     },
     Role.FACULTY: {
         Permission.MARK_ATTENDANCE,
@@ -111,14 +114,17 @@ ROLE_PERMISSIONS: dict[Role, set[Permission]] = {
         Permission.GENERATE_REPORTS,
         Permission.USE_AI_ASSISTANT,
         Permission.SUBMIT_FEEDBACK,
+        Permission.VIEW_SECTIONS,
     },
     Role.CR: {
         Permission.VIEW_ANNOUNCEMENTS,
         Permission.VIEW_CLASS_ATTENDANCE,
+        Permission.VIEW_ATTENDANCE,  # own + own class, scoped in services
         Permission.SUBMIT_REQUESTS,
         Permission.SUBMIT_FEEDBACK,
         Permission.USE_AI_ASSISTANT,
-        Permission.VIEW_STUDENTS,  # aggregate class info only - scoped in services
+        Permission.VIEW_STUDENTS,
+        Permission.VIEW_SECTIONS,
     },
     Role.STUDENT: {
         Permission.VIEW_OWN_MARKS,

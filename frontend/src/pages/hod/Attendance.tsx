@@ -35,12 +35,13 @@ export default function HODAttendance() {
     queryFn: async () => (await api.getDashboard('hod')) as unknown as HodDashboard,
   })
 
-  const { data: students } = useQuery({
-    queryKey: ['hod-students-sections'],
-    queryFn: () => api.getStudents({ pageSize: 100 }),
+  // Section options always come from the complete database list.
+  const { data: sectionsData } = useQuery({
+    queryKey: ['all-sections'],
+    queryFn: () => api.getAllSections(),
   })
 
-  const sections = Array.from(new Set((students?.items || []).map((s) => s.section).filter(Boolean)))
+  const sections = (sectionsData || []).map((s) => s.name)
 
   const { data: sectionAnalytics, isLoading: secLoading } = useQuery({
     queryKey: ['hod-section-attendance', section],

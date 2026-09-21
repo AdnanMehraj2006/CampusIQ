@@ -27,7 +27,7 @@ class StudentCreate(BaseModel):
     guardian_name: Optional[str] = None
     guardian_phone: Optional[str] = None
     is_cr: bool = False
-    password: Optional[str] = Field(None, min_length=6, description="If omitted, a default is generated")
+    password: Optional[str] = Field(None, min_length=6, description="If omitted, a secure random password is generated")
 
 
 class StudentUpdate(BaseModel):
@@ -65,6 +65,9 @@ class StudentOut(ORMModel):
     course_name: Optional[str] = None
     semester_number: Optional[int] = None
     attendance_percentage: Optional[float] = None
+    # Surfaced exactly once when the account is created with a server-generated
+    # password; never persisted (only the hash is).
+    initial_password: Optional[str] = None
 
 
 class FacultyCreate(BaseModel):
@@ -104,6 +107,7 @@ class FacultyOut(ORMModel):
     department_name: Optional[str] = None
     subject_count: Optional[int] = None
     is_hod: Optional[bool] = None
+    initial_password: Optional[str] = None
 
 
 class UserUpdateAdmin(BaseModel):

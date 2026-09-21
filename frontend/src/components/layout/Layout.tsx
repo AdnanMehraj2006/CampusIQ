@@ -16,6 +16,7 @@ import {
   GraduationCap,
   Megaphone,
   ScrollText,
+  Layers,
 } from 'lucide-react'
 import { logout, Role } from '@/lib/auth'
 import { getUser } from '@/lib/auth'
@@ -36,6 +37,7 @@ const ROLE_CONFIG: Record<Role, {
       { label: 'Faculty', path: 'faculty', icon: Users },
       { label: 'Departments', path: 'departments', icon: BarChart3 },
       { label: 'Courses', path: 'courses', icon: BookOpen },
+      { label: 'Sections', path: 'sections', icon: Layers },
       { label: 'Subjects', path: 'subjects', icon: BookOpen },
       { label: 'Announcements', path: 'announcements', icon: Megaphone },
       { label: 'Reports', path: 'reports', icon: FileText },

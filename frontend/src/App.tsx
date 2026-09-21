@@ -46,6 +46,7 @@ import AdminFaculty from '@/pages/admin/Faculty'
 import AdminAuditLogs from '@/pages/admin/AuditLogs'
 import AdminDepartments from '@/pages/admin/Departments'
 import AdminCourses from '@/pages/admin/Courses'
+import AdminSections from '@/pages/admin/Sections'
 import AdminSubjects from '@/pages/admin/Subjects'
 import AdminSettings from '@/pages/admin/Settings'
 import Notifications from '@/pages/Notifications'
@@ -186,6 +187,7 @@ function App() {
               <Route path="faculty" element={<AdminFaculty />} />
               <Route path="departments" element={<AdminDepartments />} />
               <Route path="courses" element={<AdminCourses />} />
+              <Route path="sections" element={<AdminSections />} />
               <Route path="subjects" element={<AdminSubjects />} />
               <Route path="timetable" element={<AdminTimetable />} />
               <Route path="announcements" element={<AdminAnnouncements />} />
