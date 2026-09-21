@@ -97,11 +97,6 @@ def create_app() -> FastAPI:
 
     app.include_router(api_router, prefix=settings.api_v1_prefix)
 
-    # ---- Static uploads ----
-    from fastapi.staticfiles import StaticFiles
-
-    app.mount("/uploads", StaticFiles(directory=str(settings.upload_path)), name="uploads")
-
     @app.get("/health", tags=["System"])
     def health():
         return {

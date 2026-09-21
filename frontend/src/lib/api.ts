@@ -41,6 +41,18 @@ import {
 const BASE_URL = `${import.meta.env.VITE_API_URL || ""}/api/v1`
 
 class ApiClient {
+  // File downloads
+  downloadFile = (fileType: string, resourceId: number, filename: string) => {
+    const token = getToken()
+    const headers: HeadersInit = {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    }
+    
+    return fetch(`${BASE_URL}/files/${fileType}/${resourceId}/${encodeURIComponent(filename)}`, {
+      headers,
+    })
+  }
+
   private async request<T>(
     path: string,
     options: RequestInit = {},
@@ -973,4 +985,19 @@ export function getApiErrorMessage(error: unknown, fallback = 'Something went wr
 }
 
 export const api = new ApiClient()
+
+export function downloadFile(
+  fileType: string,
+  resourceId: number,
+  filename: string
+): Promise<Response> {
+  const token = getToken()
+  const headers: HeadersInit = {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  }
+  
+  return fetch(`${BASE_URL}/files/${fileType}/${resourceId}/${encodeURIComponent(filename)}`, {
+    headers,
+  })
+}
 

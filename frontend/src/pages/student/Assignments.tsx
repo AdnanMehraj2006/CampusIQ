@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { downloadAttachment as downloadAssignment } from '@/lib/file-download'
 import { Button } from '@/components/ui/button'
 import { FileUpload } from '@/components/ui/file-upload'
 import { Input } from '@/components/ui/input'
@@ -47,9 +48,10 @@ export default function StudentAssignments() {
     }
   }
 
-  const downloadAttachment = (assignment: any) => {
+  const downloadAttachment = async (assignment: any) => {
     if (assignment.attachment_path) {
-      window.open(`/uploads/${assignment.attachment_path}`)
+      const filename = assignment.attachment_name || 'attachment'
+      await downloadAssignment(assignment.id, filename)
     }
   }
 

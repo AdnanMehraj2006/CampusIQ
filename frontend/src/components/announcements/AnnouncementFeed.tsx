@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api, getApiErrorMessage } from '@/lib/api'
+import { api, getApiErrorMessage, downloadFile } from '@/lib/api'
 import { Announcement } from '@/types'
 import { AnnouncementItem } from './AnnouncementItem'
 import { priorityLabel, PRIORITY_VARIANT, targetTypeLabel } from './announcementHelpers'
@@ -75,6 +75,26 @@ export function AnnouncementFeed({
 
   const pagination = data?.pagination
   const items = data?.items || []
+
+  const downloadAttachment = async (announcement: Announcement) => {
+    if (announcement.attachment_path) {
+      const filename = announcement.attachment_name || 'attachment'
+      const response = await downloadFile('announcement', announcement.id, filename)
+      if (!response.ok) {
+        toast.error('Failed to download file')
+        return
+      }
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -247,9 +267,8 @@ export function AnnouncementFeed({
             </div>
             {selected.attachment_name && (
               <a
-                href={selected.attachment_path ? `/uploads/${selected.attachment_path}` : undefined}
-                target="_blank"
-                rel="noreferrer"
+                href="#"
+                onClick={(e) => { e.preventDefault(); downloadAttachment(selected) }}
                 className="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline dark:text-blue-400"
               >
                 📎 {selected.attachment_name}

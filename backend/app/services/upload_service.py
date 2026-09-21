@@ -135,9 +135,14 @@ async def save_upload(
 
 
 def upload_to_url(stored_path: Optional[str]) -> Optional[str]:
+    """Generate download URL for authenticated file access.
+
+    Files are served through authenticated API endpoints for security.
+    """
     if not stored_path:
         return None
-    return f"{settings.backend_url.rstrip('/')}/uploads/{stored_path.lstrip('/')}"
+    # Return storage path - will be used to construct download URL
+    return stored_path
 
 
 def delete_upload(stored_path: Optional[str]) -> None:

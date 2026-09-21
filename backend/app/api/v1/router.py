@@ -11,6 +11,7 @@ from app.api.v1 import (
     attendance,
     audit,
     auth,
+    files,
     classrooms,
     courses,
     dashboard,
@@ -29,6 +30,7 @@ api_router = APIRouter()
 api_router.include_router(ai.router)
 api_router.include_router(announcements.router)
 api_router.include_router(assignments.router)
+api_router.include_router(files.router)
 api_router.include_router(attendance.router)
 api_router.include_router(audit.router)
 api_router.include_router(auth.router)
