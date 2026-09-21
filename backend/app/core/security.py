@@ -97,7 +97,7 @@ def create_access_token(
 ) -> tuple[str, datetime]:
     token, _jti, exp = _create_token(
         subject=str(user_id),
-        secret=settings.jwt_secret,
+        secret=settings._jwt_secret,
         expires_delta=timedelta(minutes=settings.access_token_expire_minutes),
         token_type="access",
         extra_claims={"role": str(role), **(extra_claims or {})},
@@ -108,7 +108,7 @@ def create_access_token(
 def create_refresh_token(user_id: str | int) -> tuple[str, str, datetime]:
     token, jti, exp = _create_token(
         subject=str(user_id),
-        secret=settings.jwt_refresh_secret,
+        secret=settings._jwt_refresh_secret,
         expires_delta=timedelta(days=settings.refresh_token_expire_days),
         token_type="refresh",
     )
@@ -118,7 +118,7 @@ def create_refresh_token(user_id: str | int) -> tuple[str, str, datetime]:
 def decode_token(token: str, expected_type: Optional[str] = None) -> Dict[str, Any]:
     """Decode + validate a token. Raises ``jwt.InvalidTokenError`` variants."""
     secret = (
-        settings.jwt_refresh_secret if expected_type == "refresh" else settings.jwt_secret
+        settings._jwt_refresh_secret if expected_type == "refresh" else settings._jwt_secret
     )
     payload = jwt.decode(token, secret, algorithms=[ALGORITHM])
     if expected_type and payload.get("type") != expected_type:

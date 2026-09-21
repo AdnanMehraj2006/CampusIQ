@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     # ---- Application ----
     app_name: str = "CampusIQ"
     app_env: str = "development"
-    debug: bool = True
+    debug: bool = False
     api_v1_prefix: str = "/api/v1"
     frontend_url: str = "http://localhost:5173"
     backend_url: str = "http://localhost:8000"
@@ -36,12 +36,11 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./campusiq.db"
 
     # ---- JWT ----
-    jwt_secret: str = secrets.token_urlsafe(48)
-    jwt_refresh_secret: str = secrets.token_urlsafe(48)
+    jwt_secret: str = ""  # Required in production, dev generates secure random fallback
+    jwt_refresh_secret: str = ""  # Required in production, dev generates secure random fallback
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
-    secure_cookies: bool = False
 
     # ---- Password hashing ----
     password_hash_scheme: str = "bcrypt"
@@ -72,6 +71,7 @@ class Settings(BaseSettings):
 
     # ---- CORS ----
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173,https://localhost:5173"
+    cors_origins_extra: str = ""  # Additional origins for production deployment
 
     # ---- Derived (computed in properties) ----
     @property
@@ -79,8 +79,44 @@ class Settings(BaseSettings):
         return self.app_env.lower() == "production"
 
     @property
+    def secure_cookies(self) -> bool:
+        """Enable secure cookies only in production/HTTPS environments."""
+        return self.is_production
+
+    @property
     def sqlite_in_use(self) -> bool:
         return self.database_url.startswith("sqlite")
+
+    @property
+    def jwt_secrets_valid(self) -> bool:
+        """True if JWT secrets are properly configured (required for production)."""
+        return bool(self.jwt_secret and self.jwt_refresh_secret)
+
+    _dev_jwt_secret: str = None  # Generated once, used for dev fallback
+    _dev_jwt_refresh_secret: str = None  # Generated once, used for dev fallback
+
+    def _init_dev_secrets(self) -> None:
+        """Initialize development fallback secrets (only called once)."""
+        if self._dev_jwt_secret is None:
+            object.__setattr__(self, "_dev_jwt_secret", secrets.token_urlsafe(48))
+        if self._dev_jwt_refresh_secret is None:
+            object.__setattr__(self, "_dev_jwt_refresh_secret", secrets.token_urlsafe(48))
+
+    @property
+    def _jwt_secret(self) -> str:
+        """JWT secret - uses configured value or generates secure fallback for development."""
+        if self.jwt_secret:
+            return self.jwt_secret
+        self._init_dev_secrets()
+        return self._dev_jwt_secret
+
+    @property
+    def _jwt_refresh_secret(self) -> str:
+        """JWT refresh secret - uses configured value or generates secure fallback for development."""
+        if self.jwt_refresh_secret:
+            return self.jwt_refresh_secret
+        self._init_dev_secrets()
+        return self._dev_jwt_refresh_secret
 
     @property
     def allowed_extensions_list(self) -> List[str]:
@@ -88,7 +124,11 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins_list(self) -> List[str]:
-        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+        """Combined list of default + extra CORS origins."""
+        origins = [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+        if self.cors_origins_extra:
+            origins.extend([o.strip() for o in self.cors_origins_extra.split(",") if o.strip()])
+        return origins
 
     @property
     def max_upload_size_bytes(self) -> int:
