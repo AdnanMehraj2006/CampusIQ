@@ -180,7 +180,7 @@ def list_cr_requests(
     department_id: int | None = None,
     db: Session = Depends(get_db),
     page_params: dict = Depends(pagination_params),
-    current_user: User = Depends(require_permission(Permission.VIEW_ANNOUNCEMENTS)),
+    current_user: User = Depends(require_permission(Permission.SUBMIT_REQUESTS)),
 ):
     q = db.query(CRRequest)
     

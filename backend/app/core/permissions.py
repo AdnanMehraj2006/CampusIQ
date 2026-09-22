@@ -94,6 +94,7 @@ ROLE_PERMISSIONS: dict[Role, set[Permission]] = {
         Permission.VIEW_ANNOUNCEMENTS,
         Permission.GENERATE_REPORTS,
         Permission.USE_AI_ASSISTANT,
+        Permission.SUBMIT_REQUESTS,
         Permission.VIEW_SECTIONS,
     },
     Role.FACULTY: {
