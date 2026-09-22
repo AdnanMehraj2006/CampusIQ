@@ -1,8 +1,9 @@
-import { useQuery } from '@tanstack/react-query'
-import { api } from '@/lib/api'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { api, getApiErrorMessage } from '@/lib/api'
 import { PageHeader } from '@/components/ui/page-header'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { LoadingState, ErrorState, EmptyState } from '@/components/ui/states'
+import { Badge } from '@/components/ui/badge'
 import {
   TableWrapper,
   Table,
@@ -12,7 +13,8 @@ import {
   TableHead,
   TableCell,
 } from '@/components/ui/table'
-import { TrendingUp, AlertCircle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { TrendingUp, AlertCircle, Star, MessageSquare } from 'lucide-react'
 import {
   BarChart,
   Bar,
@@ -22,6 +24,25 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from 'recharts'
+import { format } from 'date-fns'
+import { toast } from 'react-hot-toast'
+
+type FacultyFeedback = {
+  id: number
+  name: string
+  email: string
+  department: string | null
+  designation: string
+  feedback_count: number
+  average_rating: number
+  feedback: {
+    rating: number
+    message: string
+    subject_id: number | null
+    section: string | null
+    created_at: string
+  }[]
+}
 
 type HodDashboard = {
   department?: { id: number; name: string }
@@ -31,23 +52,30 @@ type HodDashboard = {
 }
 
 export default function HODPerformance() {
-  const { data, isLoading, isError, refetch } = useQuery<HodDashboard>({
+  const queryClient = useQueryClient()
+  const { data: dashboard, isLoading, isError, refetch } = useQuery<HodDashboard>({
     queryKey: ['dashboard', 'hod'],
     queryFn: async () => (await api.getDashboard('hod')) as unknown as HodDashboard,
   })
 
-  if (isLoading) return <LoadingState message="Loading performance analytics..." className="pt-20" />
+  const { data: facultyData, isLoading: loadingFaculty } = useQuery<{ items: FacultyFeedback[] }>({
+    queryKey: ['faculty-performance'],
+    queryFn: () => api.getFacultyPerformance(),
+  })
+
+  if (isLoading || loadingFaculty) return <LoadingState message="Loading performance analytics..." className="pt-20" />
   if (isError) return <ErrorState message="Failed to load analytics" onRetry={refetch} className="pt-20" />
 
-  const subjectPerf = (data?.subject_performance || []).slice(-10)
-  const attention = data?.students_needing_attention || []
-  const workload = data?.faculty_workload || []
+  const subjectPerf = (dashboard?.subject_performance || []).slice(-10)
+  const attention = dashboard?.students_needing_attention || []
+  const workload = dashboard?.faculty_workload || []
+  const facultyList = facultyData?.items || []
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Performance Analytics"
-        subtitle={data?.department?.name ? `Department: ${data.department.name}` : 'Department performance overview'}
+        subtitle={dashboard?.department?.name ? `Department: ${dashboard.department.name}` : 'Department performance overview'}
       />
 
       <Card>
@@ -112,6 +140,55 @@ export default function HODPerformance() {
                       <TableCell className="font-medium">{s.name}</TableCell>
                       <TableCell className="font-semibold text-red-600 dark:text-red-400">
                         {s.percentage}%
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableWrapper>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Faculty feedback</CardTitle>
+          <CardDescription>Student and CR feedback ratings for faculty members</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {facultyList.length === 0 ? (
+            <EmptyState title="No feedback" message="No feedback has been submitted for faculty members yet." />
+          ) : (
+            <TableWrapper>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Designation</TableHead>
+                    <TableHead>Avg Rating</TableHead>
+                    <TableHead>Feedback Count</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {facultyList.map((f) => (
+                    <TableRow key={f.id}>
+                      <TableCell className="font-medium">{f.name}</TableCell>
+                      <TableCell>{f.designation || '-'}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                          {f.average_rating.toFixed(1)}
+                        </div>
+                      </TableCell>
+                      <TableCell>{f.feedback_count}</TableCell>
+                      <TableCell>
+                        <Button variant="outline" size="sm" onClick={() => {
+                          queryClient.setQueryData(['faculty-performance', f.id], { items: [f] })
+                          window.scrollTo({ top: 0, behavior: 'smooth' })
+                        }}>
+                          View feedback
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}

@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
-from app.core.deps import require_permission
+from app.core.deps import pagination_params, require_permission
 from app.core.exceptions import BadRequestError, ForbiddenError, NotFoundError
 from app.core.permissions import Permission, Role
 from app.database import get_db
@@ -23,8 +23,9 @@ from app.models.people import Faculty, Student
 from app.models.project import Project
 from app.models.subject import Subject, SubjectAssignment
 from app.models.timetable import Attendance, TimetableEntry
+from app.models.comms import Feedback
 from app.models.user import User
-from app.services import attendance_service, report_service
+from app.schemas.common import paginated
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
@@ -345,3 +346,60 @@ def department_report(
         ],
     )
     return Response(content=pdf, headers={k: v.format(name="department_report") for k, v in _PDF_HEADERS.items()})
+
+
+def _get_faculty_feedback(db: Session, faculty_id: int, department_id: int | None = None) -> list[dict]:
+    """Get feedback for a specific faculty member, optionally scoped to department."""
+    q = db.query(Feedback).filter(Feedback.target_type == "faculty", Feedback.department_id == faculty_id)
+    if department_id:
+        q = q.filter(Feedback.department_id == department_id)
+    rows = q.all()
+    result = []
+    for f in rows:
+        result.append({
+            "rating": f.rating,
+            "message": f.message,
+            "subject_id": f.subject_id,
+            "section": f.section,
+            "created_at": f.created_at.isoformat() if f.created_at else None,
+        })
+    return result
+
+
+@router.get("/faculty-performance")
+def faculty_performance(
+    faculty_id: int | None = None,
+    db: Session = Depends(get_db),
+    page_params: dict = Depends(pagination_params),
+    current_user: User = Depends(require_permission(Permission.VIEW_FACULTY)),
+):
+    """Get faculty performance based on feedback. HODs only see their department."""
+    q = db.query(Faculty)
+    
+    if current_user.role == Role.HOD and current_user.faculty_profile:
+        q = q.filter(Faculty.department_id == current_user.faculty_profile.department_id)
+    
+    if faculty_id:
+        q = q.filter(Faculty.id == faculty_id)
+    
+    total = q.count()
+    faculties = q.order_by(Faculty.id).offset(page_params["offset"]).limit(page_params["page_size"]).all()
+    
+    results = []
+    for f in faculties:
+        feedback = _get_faculty_feedback(db, f.id, f.department_id if current_user.role == Role.HOD else None)
+        avg_rating = sum(fb["rating"] for fb in feedback) / len(feedback) if feedback else 0.0
+        results.append(
+            {
+                "id": f.id,
+                "name": f.name,
+                "email": f.email,
+                "department": f.department.name if f.department else None,
+                "designations": f.designation,
+                "feedback_count": len(feedback),
+                "average_rating": round(avg_rating, 2),
+                "feedback": feedback,
+            }
+        )
+    
+    return paginated(results, page_params["page"], page_params["page_size"], total)

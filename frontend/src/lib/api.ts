@@ -551,6 +551,21 @@ class ApiClient {
     await this.downloadReport(`/reports/department?${params.toString()}`, `department_report.${format}`)
   }
 
+  getFacultyPerformance = async (facultyId?: number, page: number = 1, pageSize: number = 20) => {
+    const parts = [`page=${page}`, `page_size=${pageSize}`]
+    if (facultyId) parts.push(`faculty_id=${facultyId}`)
+    return this.request<PaginatedResponse<{
+      id: number
+      name: string
+      email: string
+      department: string | null
+      designation: string
+      feedback_count: number
+      average_rating: number
+      feedback: { rating: number; message: string; subject_id: number | null; section: string | null; created_at: string }[]
+    }>>(`/reports/faculty-performance?${parts.join('&')}`)
+  }
+
   previewReportCsv = async (path: string): Promise<string> => {
     const token = getToken()
     const headers: HeadersInit = {}
@@ -998,7 +1013,7 @@ class ApiClient {
   // Feedback
   getFeedback = async (page: number = 1, pageSize: number = 20) => {
     return this.request<PaginatedResponse<Feedback>>(
-      `/settings/feedback?page=${page}&page_size=${pageSize}`
+      `/feedback?page=${page}&page_size=${pageSize}`
     )
   }
 
@@ -1010,7 +1025,7 @@ class ApiClient {
     rating: number
     message: string
   }) => {
-    return this.request('/settings/feedback', {
+    return this.request('/feedback', {
       method: 'POST',
       body: JSON.stringify(data),
     })

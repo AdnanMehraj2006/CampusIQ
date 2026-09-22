@@ -75,6 +75,9 @@ class NotificationType(StrEnum):
     ANNOUNCEMENT = "announcement"
     MARKS_PUBLISHED = "marks_published"
     TIMETABLE_UPDATE = "timetable_update"
+    REQUEST_SUBMITTED = "request_submitted"
+    REQUEST_STATUS_UPDATE = "request_status_update"
+    FEEDBACK_SUBMITTED = "feedback_submitted"
     SYSTEM = "system"
 
 
@@ -114,6 +117,12 @@ class Feedback(Base, TimestampMixin):
     subject: Mapped[Optional["Subject"]] = relationship()
 
 
+class RequestStatus(StrEnum):
+    PROCESSING = "processing"
+    WAITING = "waiting"
+    COMPLETED = "completed"
+
+
 class CRRequest(Base, TimestampMixin):
     """Requests raised by class representatives."""
 
@@ -121,15 +130,17 @@ class CRRequest(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     submitted_by: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=False, index=True)
+    semester_id: Mapped[Optional[int]] = mapped_column(ForeignKey("semesters.id", ondelete="SET NULL"), nullable=True)
     section: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, index=True)
     department_id: Mapped[Optional[int]] = mapped_column(ForeignKey("departments.id", ondelete="SET NULL"), nullable=True)
     request_type: Mapped[str] = mapped_column(String(50), default="other", nullable=False)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
-    status: Mapped[str] = mapped_column(String(20), default="open", nullable=False, index=True)
+    status: Mapped[str] = mapped_column(Enum(RequestStatus), default=RequestStatus.PROCESSING, nullable=False, index=True)
     resolution_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     author: Mapped[Optional["User"]] = relationship()
+    semester: Mapped[Optional["Semester"]] = relationship()
 
 
 class AuditLog(Base):

@@ -137,7 +137,7 @@ function FeedbackFormModal({
   const [message, setMessage] = useState('')
 
   const { data: subjects } = useQuery<Subject[]>({
-    queryKey: ['all-subjects'],
+    queryKey: ['cr-subjects'],
     queryFn: () => api.getAllSubjects(),
     enabled: open,
   })
