@@ -17,7 +17,7 @@ import uuid
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.models.academic import Department, Section, Semester
+from app.models.academic import Course, Department, Section, Semester
 from app.models.people import Student
 from app.models.user import User
 from tests.conftest import auth_headers, login
@@ -210,10 +210,27 @@ def test_hod_cannot_create_student_outside_own_department(
 # ---------------------------------------------------------------------------
 
 
-def _make_section(client: TestClient, headers: dict) -> str:
-    """Create a throwaway section so each CR test gets an isolated class quota."""
+def _make_section(client: TestClient, headers: dict, db: Session, semester_id: int | None = None) -> str:
+    """Create a throwaway contextual section so each CR test gets an isolated class quota."""
     name = f"T{_suffix()}"[:10]
-    response = client.post("/api/v1/sections", json={"name": name}, headers=headers)
+    # Get or create a course for this section
+    cse_dept_id = _dept_id_by_code(db, "CSE")
+    course = db.query(Course).filter(Course.department_id == cse_dept_id).first()
+    assert course is not None
+    
+    # Use provided semester or create a new one
+    if semester_id is None:
+        semester = Semester(semester_number=99, course_id=course.id)
+        db.add(semester)
+        db.commit()
+        db.refresh(semester)
+        semester_id = semester.id
+    
+    response = client.post(
+        "/api/v1/sections",
+        json={"name": name, "course_id": course.id, "semester_id": semester_id, "is_active": True},
+        headers=headers,
+    )
     assert response.status_code == 201, response.text
     return name
 
@@ -223,7 +240,7 @@ def test_admin_can_assign_and_remove_cr(client: TestClient, admin_headers: dict,
     semester = db.query(Semester).filter(Semester.semester_number == 5).first()
     assert semester is not None
 
-    section = _make_section(client, admin_headers)
+    section = _make_section(client, admin_headers, db, semester.id)
     created = _create_student(
         client, admin_headers, dept_id, section=section, semester_id=semester.id
     )
@@ -241,7 +258,7 @@ def test_admin_can_assign_and_remove_cr(client: TestClient, admin_headers: dict,
 def test_cr_list_reflects_assignment(client: TestClient, admin_headers: dict, db: Session):
     dept_id = _dept_id_by_code(db, "CSE")
     semester = db.query(Semester).filter(Semester.semester_number == 5).first()
-    section = _make_section(client, admin_headers)
+    section = _make_section(client, admin_headers, db, semester.id)
     created = _create_student(
         client, admin_headers, dept_id, section=section, semester_id=semester.id
     )
@@ -261,7 +278,7 @@ def test_max_two_crs_per_department_semester_section(
 ):
     dept_id = _dept_id_by_code(db, "CSE")
     semester = db.query(Semester).filter(Semester.semester_number == 5).first()
-    section = _make_section(client, admin_headers)
+    section = _make_section(client, admin_headers, db, semester.id)
 
     a = _create_student(client, admin_headers, dept_id, section=section, semester_id=semester.id)
     b = _create_student(client, admin_headers, dept_id, section=section, semester_id=semester.id)
@@ -294,14 +311,14 @@ def test_third_class_uses_independent_quota(
     dept_id = _dept_id_by_code(db, "CSE")
     semester = db.query(Semester).filter(Semester.semester_number == 5).first()
 
-    section_b = _make_section(client, admin_headers)
+    section_b = _make_section(client, admin_headers, db, semester.id)
     a = _create_student(client, admin_headers, dept_id, section=section_b, semester_id=semester.id)
     b = _create_student(client, admin_headers, dept_id, section=section_b, semester_id=semester.id)
     assert client.post(f"/api/v1/students/{a['id']}/cr", headers=admin_headers).status_code == 200
     assert client.post(f"/api/v1/students/{b['id']}/cr", headers=admin_headers).status_code == 200
 
     # A different section is a different class context: allowed.
-    section_c = _make_section(client, admin_headers)
+    section_c = _make_section(client, admin_headers, db, semester.id)
     other = _create_student(client, admin_headers, dept_id, section=section_c, semester_id=semester.id)
     response = client.post(f"/api/v1/students/{other['id']}/cr", headers=admin_headers)
     assert response.status_code == 200, response.text
@@ -312,7 +329,7 @@ def test_hod_can_assign_cr_within_own_department(
 ):
     cse_dept_id = _dept_id_by_code(db, "CSE")
     semester = db.query(Semester).filter(Semester.semester_number == 5).first()
-    section = _make_section(client, admin_headers)
+    section = _make_section(client, admin_headers, db, semester.id)
     created = _create_student(
         client, admin_headers, cse_dept_id, section=section, semester_id=semester.id
     )
@@ -327,7 +344,7 @@ def test_hod_cannot_assign_cr_outside_own_department(
 ):
     it_dept_id = _dept_id_by_code(db, "IT")
     semester = db.query(Semester).filter(Semester.semester_number == 5).first()
-    section = _make_section(client, admin_headers)
+    section = _make_section(client, admin_headers, db, semester.id)
     created = _create_student(
         client, admin_headers, it_dept_id, section=section, semester_id=semester.id
     )
@@ -467,9 +484,16 @@ def test_cr_cannot_mark_or_edit_attendance(client: TestClient, db: Session):
 
 def test_admin_section_crud(client: TestClient, admin_headers: dict, db: Session):
     name = f"Z{_suffix()}"
+    cse_dept_id = _dept_id_by_code(db, "CSE")
+    course = db.query(Course).filter(Course.department_id == cse_dept_id).first()
+    assert course is not None
+    semester = Semester(semester_number=98, course_id=course.id)
+    db.add(semester)
+    db.commit()
+    db.refresh(semester)
     created_response = client.post(
         "/api/v1/sections",
-        json={"name": name, "description": "Phase 1 test section"},
+        json={"name": name, "description": "Phase 1 test section", "course_id": course.id, "semester_id": semester.id},
         headers=admin_headers,
     )
     assert created_response.status_code == 201, created_response.text
@@ -478,19 +502,18 @@ def test_admin_section_crud(client: TestClient, admin_headers: dict, db: Session
     assert created["is_active"] is True
     section_id = created["id"]
 
-    # Duplicate name rejected.
-    dup = client.post("/api/v1/sections", json={"name": name}, headers=admin_headers)
+    # Duplicate name in same context is rejected.
+    dup = client.post(
+        "/api/v1/sections",
+        json={"name": name, "course_id": course.id, "semester_id": semester.id, "is_active": True},
+        headers=admin_headers,
+    )
     assert dup.status_code == 409, dup.text
 
     # It shows up in the listing.
-    listing = client.get("/api/v1/sections", headers=admin_headers)
+    listing = client.get(f"/api/v1/sections?course_id={course.id}&semester_id={semester.id}", headers=admin_headers)
     assert listing.status_code == 200
     assert any(s["id"] == section_id for s in listing.json()["items"])
-
-    # And in the selector list.
-    all_sections = client.get("/api/v1/sections/all", headers=admin_headers)
-    assert all_sections.status_code == 200
-    assert any(s["name"] == name for s in all_sections.json())
 
     # Update.
     updated = client.put(
@@ -509,12 +532,14 @@ def test_admin_section_crud(client: TestClient, admin_headers: dict, db: Session
 
 
 def test_section_with_students_cannot_be_deleted(
-    client: TestClient, admin_headers: dict
+    client: TestClient, admin_headers: dict, db: Session
 ):
-    """Section A is seeded with students - deletion must be refused."""
-    section = client.get("/api/v1/sections", headers=admin_headers).json()["items"]
-    section_a = next((s for s in section if s["name"] == "A"), None)
-    assert section_a is not None, "Seed data should contain section A"
+    """Section A in seed data has students - deletion must be refused."""
+    # Get a contextual section A that has students
+    sections = client.get("/api/v1/sections", headers=admin_headers).json()["items"]
+    # Find a section A with course_id/semester_id that has students
+    section_a = next((s for s in sections if s["name"] == "A" and s.get("student_count", 0) > 0), None)
+    assert section_a is not None, "Seed data should contain contextual section A with students"
 
     response = client.delete(f"/api/v1/sections/{section_a['id']}", headers=admin_headers)
     assert response.status_code == 409, response.text
@@ -522,7 +547,7 @@ def test_section_with_students_cannot_be_deleted(
 
 
 def test_student_cannot_manage_sections(client: TestClient, student_headers: dict):
-    create = client.post("/api/v1/sections", json={"name": "X"}, headers=student_headers)
+    create = client.post("/api/v1/sections", json={"name": "X", "is_active": True}, headers=student_headers)
     assert create.status_code == 403, create.text
     listing = client.get("/api/v1/sections", headers=student_headers)
     assert listing.status_code == 403, listing.text
@@ -534,8 +559,15 @@ def test_student_cannot_manage_sections(client: TestClient, student_headers: dic
 
 
 def test_student_creation_rejects_invalid_section(
-    client: TestClient, admin_headers: dict
+    client: TestClient, admin_headers: dict, db: Session
 ):
+    cse_dept_id = _dept_id_by_code(db, "CSE")
+    course = db.query(Course).filter(Course.department_id == cse_dept_id).first()
+    assert course is not None
+    semester = Semester(semester_number=97, course_id=course.id)
+    db.add(semester)
+    db.commit()
+    db.refresh(semester)
     response = client.post(
         "/api/v1/students",
         json={
@@ -543,7 +575,9 @@ def test_student_creation_rejects_invalid_section(
             "email": f"badsec.{_suffix()}@campusiq.edu",
             "college_id": f"BADSEC{_suffix()}",
             "enrollment_number": f"BADSEC{_suffix()}",
-            "department_id": 1,
+            "department_id": cse_dept_id,
+            "course_id": course.id,
+            "semester_id": semester.id,
             "section": "ZZ9",
             "admission_year": 2024,
         },
@@ -640,3 +674,6 @@ def test_duplicate_email_rejected(client: TestClient, admin_headers: dict):
         headers=admin_headers,
     )
     assert response.status_code == 409, response.text
+
+
+

@@ -126,8 +126,9 @@ def _validate_academic_context(db: Session, payload: object) -> None:
             raise BadRequestError("Selected semester does not belong to the chosen course.")
 
     # Validate section exists - backward compatible:
-    # - Contextual sections (course_id/semester_id) must match exactly
-    # - Context-free sections (no course_id/semester_id) are available to all
+    # - If semester_id is provided, section must match that semester
+    # - If course_id is provided, section must match that course
+    # - If neither is provided, section just needs to exist
     if section_name:
         active_sections = (
             db.query(Section)
@@ -139,11 +140,10 @@ def _validate_academic_context(db: Session, payload: object) -> None:
             return
         
         # Check if section name exists with matching context
-        # A section without course_id/semester_id is context-free and available to all
         context_matched = any(
             s.name == section_name and
-            (course_id is None or s.course_id is None or s.course_id == course_id) and
-            (semester_id is None or s.semester_id is None or s.semester_id == semester_id)
+            (semester_id is None or s.semester_id is None or s.semester_id == semester_id) and
+            (course_id is None or s.course_id is None or s.course_id == course_id)
             for s in active_sections
         )
         

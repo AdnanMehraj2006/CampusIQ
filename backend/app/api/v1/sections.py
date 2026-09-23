@@ -13,7 +13,7 @@ from app.core.deps import pagination_params, require_permission
 from app.core.exceptions import BadRequestError, ConflictError, NotFoundError
 from app.core.permissions import Permission
 from app.database import get_db
-from app.models.academic import Section
+from app.models.academic import Course, Semester, Section
 from app.models.people import Student
 from app.schemas import SectionCreate, SectionOut, SectionUpdate
 from app.schemas.common import paginated
@@ -138,6 +138,19 @@ def create_section(
     name = payload.name.strip()
     if not name:
         raise BadRequestError("Section name is required.")
+    
+    # Require academic context (course_id and semester_id must be provided)
+    if payload.course_id is None or payload.semester_id is None:
+        raise BadRequestError(
+            "Section must belong to an academic context. "
+            "Select both a course and semester when creating a section."
+        )
+    
+    # Verify the course and semester exist
+    if not db.get(Course, payload.course_id):
+        raise BadRequestError("Selected course does not exist.")
+    if not db.get(Semester, payload.semester_id):
+        raise BadRequestError("Selected semester does not exist.")
     
     # Check for existing section with same context
     existing = db.query(Section).filter(

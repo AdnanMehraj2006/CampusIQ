@@ -198,28 +198,118 @@ def seed(db: Session) -> dict:
     created["courses"] = len(courses)
 
     # ------------------------------------------------------------------
-    # Sections (canonical section values - never hardcoded in the UI)
-    # Sections are contextual: same name (e.g., "A") can exist in different course/semester combos
+    # Sections (contextual sections with academic hierarchy)
+    # Same section name (e.g., "A") can exist in different academic contexts
     # ------------------------------------------------------------------
-    # Create contextual sections for CSE B.Tech semester 5
-    for dept_code in ["CSE", "IT"]:
-        dept = departments[dept_code]
-        course = courses[dept_code]
-        for sec_name, sec_desc in [("A", f"Section A - {course.name}"), ("B", f"Section B - {course.name}")]:
-            sec = db.query(Section).filter(
-                Section.name == sec_name,
-                Section.course_id == course.id,
-                Section.semester_id == semester.id,
-            ).first()
-            if not sec:
-                db.add(Section(
-                    name=sec_name,
-                    description=sec_desc,
-                    is_active=True,
-                    course_id=course.id,
-                    semester_id=semester.id,
-                ))
-                db.commit()
+    
+    # Get CSE B.Tech course and create semesters for testing
+    cse_dept = departments["CSE"]
+    cse_course = courses["CSE"]
+    
+    # Create semester 6 for CSE B.Tech
+    semester6 = db.query(Semester).filter(
+        Semester.semester_number == 6,
+        Semester.course_id == cse_course.id,
+    ).first()
+    if not semester6:
+        semester6 = Semester(semester_number=6, academic_session_id=session.id, course_id=cse_course.id)
+        db.add(semester6)
+        db.commit()
+    
+    # Create semester 1 for CSE M.Tech (different course)
+    mtech_course = db.query(Course).filter(Course.code == "MTECH-CSE").first()
+    if not mtech_course:
+        mtech_course = Course(
+            name="M.Tech Computer Science",
+            code="MTECH-CSE",
+            department_id=cse_dept.id,
+            duration_years=2,
+        )
+        db.add(mtech_course)
+        db.commit()
+    
+    semester1 = db.query(Semester).filter(
+        Semester.semester_number == 1,
+        Semester.course_id == mtech_course.id,
+    ).first()
+    if not semester1:
+        semester1 = Semester(semester_number=1, academic_session_id=session.id, course_id=mtech_course.id)
+        db.add(semester1)
+        db.commit()
+    
+    # IT B.Tech course (if not already exists)
+    it_dept = departments["IT"]
+    it_course = courses["IT"]
+    
+    # Create sections across different academic contexts - same name but different context
+    # CSE B.Tech Semester 5
+    for sec_name, sec_desc in [("A", "Section A - CSE B.Tech Sem 5"), ("B", "Section B - CSE B.Tech Sem 5")]:
+        sec = db.query(Section).filter(
+            Section.name == sec_name,
+            Section.course_id == cse_course.id,
+            Section.semester_id == semester.id,
+        ).first()
+        if not sec:
+            db.add(Section(
+                name=sec_name,
+                description=sec_desc,
+                is_active=True,
+                course_id=cse_course.id,
+                semester_id=semester.id,
+            ))
+            db.commit()
+    
+    # CSE B.Tech Semester 6 (same course, different semester)
+    for sec_name, sec_desc in [("A", "Section A - CSE B.Tech Sem 6"), ("B", "Section B - CSE B.Tech Sem 6")]:
+        sec = db.query(Section).filter(
+            Section.name == sec_name,
+            Section.course_id == cse_course.id,
+            Section.semester_id == semester6.id,
+        ).first()
+        if not sec:
+            db.add(Section(
+                name=sec_name,
+                description=sec_desc,
+                is_active=True,
+                course_id=cse_course.id,
+                semester_id=semester6.id,
+            ))
+            db.commit()
+    
+    # CSE M.Tech Semester 1 (different course, same section name)
+    for sec_name, sec_desc in [("A", "Section A - CSE M.Tech Sem 1"), ("B", "Section B - CSE M.Tech Sem 1")]:
+        sec = db.query(Section).filter(
+            Section.name == sec_name,
+            Section.course_id == mtech_course.id,
+            Section.semester_id == semester1.id,
+        ).first()
+        if not sec:
+            db.add(Section(
+                name=sec_name,
+                description=sec_desc,
+                is_active=True,
+                course_id=mtech_course.id,
+                semester_id=semester1.id,
+            ))
+            db.commit()
+    
+    # IT B.Tech Semester 5 (different department)
+    for sec_name, sec_desc in [("A", "Section A - IT B.Tech Sem 5"), ("B", "Section B - IT B.Tech Sem 5")]:
+        sec = db.query(Section).filter(
+            Section.name == sec_name,
+            Section.course_id == it_course.id,
+            Section.semester_id == semester.id,
+        ).first()
+        if not sec:
+            db.add(Section(
+                name=sec_name,
+                description=sec_desc,
+                is_active=True,
+                course_id=it_course.id,
+                semester_id=semester.id,
+            ))
+            db.commit()
+    
     created["sections"] = db.query(Section).count()
 
     # ------------------------------------------------------------------

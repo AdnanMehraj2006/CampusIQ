@@ -19,7 +19,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Add course_id and semester_id columns to sections (nullable for backward compatibility)
+    # Add course_id and semester_id columns to sections
     op.add_column('sections', sa.Column('course_id', sa.Integer(), nullable=True))
     op.add_column('sections', sa.Column('semester_id', sa.Integer(), nullable=True))
     
