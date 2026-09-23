@@ -13,7 +13,7 @@ from app.core.deps import pagination_params, require_permission
 from app.core.exceptions import BadRequestError, ConflictError, NotFoundError
 from app.core.permissions import Permission
 from app.database import get_db
-from app.models.academic import Course, Semester, Section
+from app.models.academic import Course, Department, Semester, Section
 from app.models.people import Student
 from app.schemas import SectionCreate, SectionOut, SectionUpdate
 from app.schemas.common import paginated
@@ -83,6 +83,7 @@ def _assert_not_refered(db: Session, section: Section) -> None:
 def list_sections(
     course_id: int | None = None,
     semester_id: int | None = None,
+    department_id: int | None = None,
     is_active: bool | None = None,
     db: Session = Depends(get_db),
     page_params: dict = Depends(pagination_params),
@@ -93,6 +94,9 @@ def list_sections(
         q = q.filter(Section.course_id == course_id)
     if semester_id is not None:
         q = q.filter(Section.semester_id == semester_id)
+    if department_id is not None:
+        # Filter sections by department through course relationship (left join to handle null course)
+        q = q.outerjoin(Section.course).filter(Course.department_id == department_id)
     if is_active is not None:
         q = q.filter(Section.is_active == is_active)
     if page_params["q"]:

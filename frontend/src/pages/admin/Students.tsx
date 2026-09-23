@@ -34,6 +34,7 @@ export default function AdminStudents() {
   const [deactivating, setDeactivating] = useState<Student | null>(null)
   const [credentials, setCredentials] = useState<CreatedCredentials | null>(null)
   const [crRemoving, setCrRemoving] = useState<Student | null>(null)
+  const [courseId, setCourseId] = useState('')
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin-students', page, search, departmentId, section],
@@ -53,8 +54,9 @@ export default function AdminStudents() {
   })
 
   const { data: semesters } = useQuery({
-    queryKey: ['form-semesters'],
-    queryFn: () => api.getSemesters(),
+    queryKey: ['form-semesters', courseId],
+    queryFn: () => api.getSemesters(courseId ? Number(courseId) : undefined),
+    enabled: courseId !== '',
   })
 
   const { data: sectionsData } = useQuery({

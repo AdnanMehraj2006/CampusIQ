@@ -1,15 +1,15 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, getApiErrorMessage } from '@/lib/api'
-import { Section, Department, Course, Semester } from '@/types'
+import { Course, Semester, Section, Department } from '@/types'
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { Select } from '@/components/ui/select'
 import { Modal, ConfirmDialog } from '@/components/ui/modal'
 import { Field } from '@/components/ui/page-header'
 import { Badge } from '@/components/ui/badge'
-import { Select } from '@/components/ui/select'
 import {
   TableWrapper,
   Table,
@@ -23,7 +23,7 @@ import { LoadingState, EmptyState, ErrorState } from '@/components/ui/states'
 import { Plus, Edit2, Trash2, Layers, Search } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 
-export default function AdminSections() {
+export default function HODAcademic() {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState<Section | null>(null)
@@ -38,25 +38,28 @@ export default function AdminSections() {
   })
 
   const { data: courses } = useQuery({
-    queryKey: ['admin-sections-courses', departmentId],
+    queryKey: ['hod-academic-courses', departmentId],
     queryFn: () => api.getCourses({ pageSize: 100, departmentId: departmentId ? Number(departmentId) : undefined }),
     enabled: departmentId !== '',
   })
 
   const { data: semesters } = useQuery({
-    queryKey: ['admin-sections-semesters', courseId],
+    queryKey: ['hod-academic-semesters', courseId],
     queryFn: () => api.getSemesters(courseId ? Number(courseId) : undefined),
     enabled: courseId !== '',
   })
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['admin-sections', departmentId],
-    queryFn: () => api.getSections({ pageSize: 100, departmentId: departmentId ? Number(departmentId) : undefined }),
+    queryKey: ['hod-academic-sections', departmentId, courseId],
+    queryFn: () => api.getSections({ 
+      pageSize: 100, 
+      departmentId: departmentId ? Number(departmentId) : undefined,
+      courseId: courseId ? Number(courseId) : undefined 
+    }),
   })
 
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['admin-sections'] })
-    queryClient.invalidateQueries({ queryKey: ['form-sections'] })
+    queryClient.invalidateQueries({ queryKey: ['hod-academic-sections'] })
   }
 
   const createMutation = useMutation({
@@ -98,27 +101,24 @@ export default function AdminSections() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Sections"
-        subtitle="Class-grouping values organized by academic context"
-        actions={
-          <Button
-            onClick={() => {
-              setEditing(null)
-              setFormOpen(true)
-            }}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            New Section
-          </Button>
-        }
+        title="Academic Management"
+        subtitle="Manage courses, semesters, and sections for your department"
       />
 
       <div className="flex gap-3 items-center">
         <Select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} className="sm:w-40">
-          <option value="">All departments</option>
+          <option value="">Select department</option>
           {(departments || []).map((d) => (
             <option key={d.id} value={d.id}>
               {d.name}
+            </option>
+          ))}
+        </Select>
+        <Select value={courseId} onChange={(e) => setCourseId(e.target.value)} className="sm:w-40">
+          <option value="">All courses</option>
+          {(courses?.items || []).map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
             </option>
           ))}
         </Select>
@@ -131,15 +131,22 @@ export default function AdminSections() {
             className="pl-9 sm:max-w-sm"
           />
         </div>
+        <Button onClick={() => {
+          setEditing(null)
+          setFormOpen(true)
+        }}>
+          <Plus className="mr-2 h-4 w-4" />
+          New Section
+        </Button>
       </div>
 
       {isLoading ? (
-        <LoadingState message="Loading sections..." />
+        <LoadingState message="Loading academic data..." />
       ) : isError ? (
-        <ErrorState message="Failed to load sections" onRetry={refetch} />
+        <ErrorState message="Failed to load academic data" onRetry={refetch} />
       ) : sections.length === 0 ? (
         <TableWrapper>
-          <EmptyState icon={Layers} title="No sections found" message="Create your first section to get started." />
+          <EmptyState icon={Layers} title="No sections found" message="Create sections for your department's courses." />
         </TableWrapper>
       ) : (
         <TableWrapper>
@@ -290,7 +297,7 @@ function SectionForm({
               course_id: courseId ? Number(courseId) : undefined,
               semester_id: semesterId ? Number(semesterId) : undefined,
             })}
-            disabled={submitting || !name.trim()}
+            disabled={submitting || !name.trim() || !courseId || !semesterId}
           >
             {section ? 'Save changes' : 'Create'}
           </Button>
@@ -312,7 +319,7 @@ function SectionForm({
           </Select>
         </Field>
         {departmentId && (
-          <Field label="Course">
+          <Field label="Course" required>
             <Select value={courseId} onChange={(e) => handleCourseChange(e.target.value)}>
               <option value="">Select course</option>
               {courses.map((c) => (
@@ -324,7 +331,7 @@ function SectionForm({
           </Field>
         )}
         {courseId && (
-          <Field label="Semester">
+          <Field label="Semester" required>
             <Select value={semesterId} onChange={(e) => setSemesterId(e.target.value)}>
               <option value="">Select semester</option>
               {semesters.map((s) => (

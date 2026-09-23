@@ -6,11 +6,12 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.core.deps import pagination_params, require_permission
+from app.core.deps import check_department_scope, pagination_params, require_permission
 from app.core.exceptions import ConflictError, NotFoundError
-from app.core.permissions import Permission
+from app.core.permissions import Permission, Role
 from app.database import get_db
 from app.models.academic import AcademicSession, Course, Semester
+from app.models.user import User
 from app.models.people import Student
 from app.models.user import User
 from app.schemas import (
@@ -53,7 +54,11 @@ def list_courses(
     current_user: User = Depends(require_permission(Permission.VIEW_ANNOUNCEMENTS)),
 ):
     q = db.query(Course)
-    if department_id:
+    # HOD can only see courses from their department
+    if current_user.role == Role.HOD and current_user.faculty_profile:
+        dept_id = current_user.faculty_profile.department_id
+        q = q.filter(Course.department_id == dept_id)
+    elif department_id:
         q = q.filter(Course.department_id == department_id)
     if page_params["q"]:
         q = q.filter(Course.name.ilike(f"%{page_params['q']}%") | Course.code.ilike(f"%{page_params['q']}%"))
@@ -170,10 +175,17 @@ def update_session(
 @router.get("/semesters", response_model=list)
 def list_semesters(
     course_id: int | None = None,
+    department_id: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(Permission.VIEW_ANNOUNCEMENTS)),
 ):
     q = db.query(Semester)
+    # HOD can only see semesters from their department's courses
+    if current_user.role == Role.HOD and current_user.faculty_profile:
+        dept_id = current_user.faculty_profile.department_id
+        q = q.outerjoin(Semester.course).filter(Course.department_id == dept_id)
+    elif department_id:
+        q = q.outerjoin(Semester.course).filter(Course.department_id == department_id)
     if course_id:
         # A semester with course_id IS NULL is college-wide, so it applies to
         # every course. Include it alongside semesters explicitly linked to the
