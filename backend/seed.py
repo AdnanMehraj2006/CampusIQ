@@ -199,12 +199,27 @@ def seed(db: Session) -> dict:
 
     # ------------------------------------------------------------------
     # Sections (canonical section values - never hardcoded in the UI)
+    # Sections are contextual: same name (e.g., "A") can exist in different course/semester combos
     # ------------------------------------------------------------------
-    for sec_name, sec_desc in [("A", "Section A"), ("B", "Section B")]:
-        sec = db.query(Section).filter(Section.name == sec_name).first()
-        if not sec:
-            db.add(Section(name=sec_name, description=sec_desc, is_active=True))
-            db.commit()
+    # Create contextual sections for CSE B.Tech semester 5
+    for dept_code in ["CSE", "IT"]:
+        dept = departments[dept_code]
+        course = courses[dept_code]
+        for sec_name, sec_desc in [("A", f"Section A - {course.name}"), ("B", f"Section B - {course.name}")]:
+            sec = db.query(Section).filter(
+                Section.name == sec_name,
+                Section.course_id == course.id,
+                Section.semester_id == semester.id,
+            ).first()
+            if not sec:
+                db.add(Section(
+                    name=sec_name,
+                    description=sec_desc,
+                    is_active=True,
+                    course_id=course.id,
+                    semester_id=semester.id,
+                ))
+                db.commit()
     created["sections"] = db.query(Section).count()
 
     # ------------------------------------------------------------------

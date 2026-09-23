@@ -104,28 +104,53 @@ def _validate_academic_context(db: Session, payload: object) -> None:
     """
     from app.models.academic import Section
 
-    section_name = getattr(payload, "section", None)
-    if section_name:
-        active = {s[0] for s in db.query(Section.name).filter(Section.is_active.is_(True)).all()}
-        # Bootstrap-friendly: only enforce once the institution has defined sections.
-        if active and section_name not in active:
-            raise BadRequestError(
-                f"Section '{section_name}' does not exist. Create it under Sections first."
-            )
-
     course_id = getattr(payload, "course_id", None)
+    semester_id = getattr(payload, "semester_id", None)
+    section_name = getattr(payload, "section", None)
+    dept_id = getattr(payload, "department_id", None)
+
+    # Validate course exists and belongs to selected department
     if course_id:
         course = db.get(Course, course_id)
         if not course:
             raise BadRequestError("Course does not exist.")
-        dept_id = getattr(payload, "department_id", None)
         if dept_id and course.department_id != dept_id:
             raise BadRequestError("Selected course does not belong to the chosen department.")
 
-    semester_id = getattr(payload, "semester_id", None)
+    # Validate semester exists and belongs to selected course
     if semester_id:
-        if not db.get(Semester, semester_id):
+        semester = db.get(Semester, semester_id)
+        if not semester:
             raise BadRequestError("Semester does not exist.")
+        if course_id and semester.course_id is not None and semester.course_id != course_id:
+            raise BadRequestError("Selected semester does not belong to the chosen course.")
+
+    # Validate section exists - backward compatible:
+    # - Contextual sections (course_id/semester_id) must match exactly
+    # - Context-free sections (no course_id/semester_id) are available to all
+    if section_name:
+        active_sections = (
+            db.query(Section)
+            .filter(Section.is_active.is_(True))
+            .all()
+        )
+        if not active_sections:
+            # Bootstrap-friendly: allow any section name until sections exist
+            return
+        
+        # Check if section name exists with matching context
+        # A section without course_id/semester_id is context-free and available to all
+        context_matched = any(
+            s.name == section_name and
+            (course_id is None or s.course_id is None or s.course_id == course_id) and
+            (semester_id is None or s.semester_id is None or s.semester_id == semester_id)
+            for s in active_sections
+        )
+        
+        if not context_matched:
+            raise BadRequestError(
+                f"Section '{section_name}' does not exist. Create it under Sections first."
+            )
 
 
 def _cr_count_in_class(

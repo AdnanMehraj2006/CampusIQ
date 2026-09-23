@@ -78,14 +78,26 @@ class AcademicSession(Base, TimestampMixin):
 
 
 class Section(Base, TimestampMixin):
-    """Academic section for class grouping (e.g., A, B, C)."""
+    """Academic section for class grouping (e.g., A, B, C).
+    
+    Section identity is contextual: the same name (e.g., "A") can exist
+    in different course/semester combinations.
+    """
 
     __tablename__ = "sections"
+    __table_args__ = (
+        UniqueConstraint("course_id", "semester_id", "name", name="uq_sections_context"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(10), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
     description: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
+    course_id: Mapped[Optional[int]] = mapped_column(ForeignKey("courses.id", ondelete="SET NULL"), nullable=True)
+    semester_id: Mapped[Optional[int]] = mapped_column(ForeignKey("semesters.id", ondelete="SET NULL"), nullable=True)
+
+    course: Mapped[Optional["Course"]] = relationship()
+    semester: Mapped[Optional["Semester"]] = relationship()
 
 
 class Semester(Base, TimestampMixin):

@@ -844,16 +844,21 @@ class ApiClient {
     )
   }
 
-  getSections = async (params: { page?: number; pageSize?: number; q?: string; isActive?: boolean } = {}) => {
-    const { page = 1, pageSize = 50, q, isActive } = params
+  getSections = async (params: { page?: number; pageSize?: number; q?: string; isActive?: boolean; courseId?: number; semesterId?: number; departmentId?: number } = {}) => {
+    const { page = 1, pageSize = 50, q, isActive, courseId, semesterId, departmentId } = params
     const parts = [`page=${page}`, `page_size=${pageSize}`]
     if (q) parts.push(`q=${encodeURIComponent(q)}`)
     if (isActive !== undefined) parts.push(`is_active=${isActive}`)
+    if (courseId !== undefined) parts.push(`course_id=${courseId}`)
+    if (semesterId !== undefined) parts.push(`semester_id=${semesterId}`)
+    if (departmentId !== undefined) parts.push(`department_id=${departmentId}`)
     return this.request<PaginatedResponse<Section>>(`/sections?${parts.join('&')}`)
   }
 
-  getAllSections = async () => {
-    return this.request<Section[]>('/sections/all')
+  getAllSections = async (isActive?: boolean) => {
+    return this.request<Section[]>(
+      isActive !== undefined ? `/sections/all?is_active=${isActive}` : '/sections/all'
+    )
   }
 
   createSection = async (data: Partial<Section>) => {

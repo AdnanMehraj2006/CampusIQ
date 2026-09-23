@@ -58,13 +58,14 @@ export default function AdminStudents() {
   })
 
   const { data: sectionsData } = useQuery({
-    queryKey: ['all-sections'],
-    queryFn: () => api.getAllSections(),
+    queryKey: ['form-sections', departmentId],
+    queryFn: () => api.getSections({ departmentId: departmentId ? Number(departmentId) : undefined }),
+    enabled: departmentId !== '',
   })
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-students'] })
-    queryClient.invalidateQueries({ queryKey: ['all-sections'] })
+    queryClient.invalidateQueries({ queryKey: ['form-sections'] })
   }
 
   const deleteMutation = useMutation({
@@ -85,7 +86,6 @@ export default function AdminStudents() {
       toast.success('Student created')
       refresh()
       setEditing(null)
-      // Surface the auto-generated password exactly once.
       if (created?.initial_password) {
         setCredentials({
           name: created.name,
@@ -137,7 +137,7 @@ export default function AdminStudents() {
 
   const students = data?.items || []
   const pagination = data?.pagination
-  const sections = sectionsData?.map((s) => s.name) || []
+  const sections = sectionsData?.items?.map((s) => s.name) || []
 
   return (
     <div className="space-y-6">
@@ -400,11 +400,13 @@ function StudentModal({
     setDepartmentId(val)
     setCourseId('')
     setSemesterId('')
+    setSection('')
   }
 
   const handleCourseChange = (val: string) => {
     setCourseId(val)
     setSemesterId('')
+    setSection('')
   }
 
   const canSubmit = name.trim() && email.trim() && enrollmentNumber.trim() && departmentId && section && admissionYear
@@ -474,8 +476,8 @@ function StudentModal({
           </Field>
         )}
         <Field label="Semester">
-          <Select value={semesterId} onChange={(e) => setSemesterId(e.target.value)}>
-            <option value="">All semesters</option>
+          <Select value={semesterId} onChange={(e) => { setSemesterId(e.target.value); setSection('') }}>
+            <option value="">Select semester</option>
             {semesters.map((s) => (
               <option key={s.id} value={s.id}>
                 Semester {s.semester_number}

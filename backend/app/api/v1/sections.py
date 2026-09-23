@@ -24,13 +24,20 @@ router = APIRouter(tags=["Sections"])
 
 def _section_out(db: Session, s: Section) -> dict:
     student_count = db.query(Student).filter(Student.section == s.name).count()
-    return {
+    result: dict = {
         "id": s.id,
         "name": s.name,
         "description": s.description,
         "is_active": s.is_active,
+        "course_id": s.course_id,
+        "semester_id": s.semester_id,
         "student_count": student_count,
     }
+    if s.course:
+        result["course_name"] = s.course.name
+    if s.semester:
+        result["semester_number"] = s.semester.semester_number
+    return result
 
 
 def _assert_not_refered(db: Session, section: Section) -> None:
@@ -74,12 +81,18 @@ def _assert_not_refered(db: Session, section: Section) -> None:
 
 @router.get("/sections", response_model=dict)
 def list_sections(
+    course_id: int | None = None,
+    semester_id: int | None = None,
     is_active: bool | None = None,
     db: Session = Depends(get_db),
     page_params: dict = Depends(pagination_params),
     current_user=Depends(require_permission(Permission.VIEW_SECTIONS)),
 ):
     q = db.query(Section)
+    if course_id is not None:
+        q = q.filter(Section.course_id == course_id)
+    if semester_id is not None:
+        q = q.filter(Section.semester_id == semester_id)
     if is_active is not None:
         q = q.filter(Section.is_active == is_active)
     if page_params["q"]:
@@ -91,11 +104,15 @@ def list_sections(
 
 @router.get("/sections/all", response_model=list[dict])
 def list_all_sections(
+    is_active: bool | None = None,
     db: Session = Depends(get_db),
     current_user=Depends(require_permission(Permission.VIEW_SECTIONS)),
 ):
-    """All active sections, for dropdowns/selectors."""
-    sections = db.query(Section).filter(Section.is_active.is_(True)).order_by(Section.name).all()
+    """All sections, for dropdowns/selectors. Can filter by is_active."""
+    q = db.query(Section)
+    if is_active is not None:
+        q = q.filter(Section.is_active == is_active)
+    sections = q.order_by(Section.name).all()
     return [_section_out(db, s) for s in sections]
 
 
@@ -121,13 +138,22 @@ def create_section(
     name = payload.name.strip()
     if not name:
         raise BadRequestError("Section name is required.")
-    if db.query(Section).filter(Section.name == name).first():
-        raise ConflictError(f"A section named '{name}' already exists.")
-
+    
+    # Check for existing section with same context
+    existing = db.query(Section).filter(
+        Section.name == name,
+        Section.course_id == payload.course_id,
+        Section.semester_id == payload.semester_id,
+    ).first()
+    if existing:
+        raise ConflictError(f"A section named '{name}' already exists in this academic context.")
+    
     section = Section(
         name=name,
         description=payload.description,
         is_active=payload.is_active,
+        course_id=payload.course_id,
+        semester_id=payload.semester_id,
     )
     db.add(section)
     db.commit()
@@ -152,7 +178,15 @@ def update_section(
     name = (data.get("name") or "").strip() if "name" in data else None
     if name:
         if name != section.name and db.query(Section).filter(Section.name == name).first():
-            raise ConflictError(f"A section named '{name}' already exists.")
+            # Check if renaming would conflict
+            if name != section.name:
+                existing = db.query(Section).filter(
+                    Section.name == name,
+                    Section.course_id == section.course_id,
+                    Section.semester_id == section.semester_id,
+                ).first()
+                if existing:
+                    raise ConflictError(f"A section named '{name}' already exists in this academic context.")
         if db.query(Student).filter(Student.section == section.name).count():
             raise BadRequestError(
                 "Rename is not allowed while students are still assigned to this section."

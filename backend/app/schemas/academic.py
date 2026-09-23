@@ -119,6 +119,8 @@ class SemesterOut(ORMModel):
 class SectionBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=10)
     description: Optional[str] = Field(None, max_length=200)
+    course_id: Optional[int] = None
+    semester_id: Optional[int] = None
 
 
 class SectionCreate(SectionBase):
@@ -136,6 +138,10 @@ class SectionOut(ORMModel):
     name: str
     description: Optional[str] = None
     is_active: bool
+    course_id: Optional[int] = None
+    semester_id: Optional[int] = None
+    course_name: Optional[str] = None
+    semester_number: Optional[int] = None
     student_count: Optional[int] = None
 
 

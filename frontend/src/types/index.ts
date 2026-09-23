@@ -136,6 +136,10 @@ export interface Section {
   name: string
   description?: string | null
   is_active: boolean
+  course_id?: number | null
+  semester_id?: number | null
+  course_name?: string | null
+  semester_number?: number | null
   student_count?: number | null
   created_at?: string | null
   updated_at?: string | null

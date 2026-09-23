@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, getApiErrorMessage } from '@/lib/api'
-import { Section } from '@/types'
+import { Section, Department, Course, Semester } from '@/types'
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Modal, ConfirmDialog } from '@/components/ui/modal'
 import { Field } from '@/components/ui/page-header'
 import { Badge } from '@/components/ui/badge'
+import { Select } from '@/components/ui/select'
 import {
   TableWrapper,
   Table,
@@ -21,7 +22,6 @@ import {
 import { LoadingState, EmptyState, ErrorState } from '@/components/ui/states'
 import { Plus, Edit2, Trash2, Layers, Search } from 'lucide-react'
 import { toast } from 'react-hot-toast'
-import { Select } from '@/components/ui/select'
 
 export default function AdminSections() {
   const queryClient = useQueryClient()
@@ -29,15 +29,32 @@ export default function AdminSections() {
   const [editing, setEditing] = useState<Section | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [deleting, setDeleting] = useState<Section | null>(null)
+  const [departmentId, setDepartmentId] = useState('')
+
+  const { data: departments } = useQuery({
+    queryKey: ['all-departments'],
+    queryFn: () => api.getAllDepartments(),
+  })
+
+  const { data: courses } = useQuery({
+    queryKey: ['admin-sections-courses', departmentId],
+    queryFn: () => api.getCourses({ pageSize: 100, departmentId: departmentId ? Number(departmentId) : undefined }),
+    enabled: departmentId !== '',
+  })
+
+  const { data: semesters } = useQuery({
+    queryKey: ['admin-sections-semesters'],
+    queryFn: () => api.getSemesters(),
+  })
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['admin-sections'],
-    queryFn: () => api.getSections({ pageSize: 100 }),
+    queryKey: ['admin-sections', departmentId],
+    queryFn: () => api.getSections({ pageSize: 100, departmentId: departmentId ? Number(departmentId) : undefined }),
   })
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-sections'] })
-    queryClient.invalidateQueries({ queryKey: ['all-sections'] })
+    queryClient.invalidateQueries({ queryKey: ['form-sections'] })
   }
 
   const createMutation = useMutation({
@@ -80,7 +97,7 @@ export default function AdminSections() {
     <div className="space-y-6">
       <PageHeader
         title="Sections"
-        subtitle="Class-grouping values used by selectors across the app"
+        subtitle="Class-grouping values organized by academic context"
         actions={
           <Button
             onClick={() => {
@@ -94,14 +111,24 @@ export default function AdminSections() {
         }
       />
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-        <Input
-          placeholder="Search sections..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9 sm:max-w-sm"
-        />
+      <div className="flex gap-3 items-center">
+        <Select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} className="sm:w-40">
+          <option value="">All departments</option>
+          {(departments || []).map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.name}
+            </option>
+          ))}
+        </Select>
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Input
+            placeholder="Search sections..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 sm:max-w-sm"
+          />
+        </div>
       </div>
 
       {isLoading ? (
@@ -118,7 +145,8 @@ export default function AdminSections() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Description</TableHead>
+                <TableHead>Course</TableHead>
+                <TableHead>Semester</TableHead>
                 <TableHead>Students</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -129,7 +157,10 @@ export default function AdminSections() {
                 <TableRow key={s.id}>
                   <TableCell className="font-medium">{s.name}</TableCell>
                   <TableCell className="text-gray-500 dark:text-gray-400">
-                    {s.description || '-'}
+                    {s.course_name ?? '-'}
+                  </TableCell>
+                  <TableCell className="text-gray-500 dark:text-gray-400">
+                    {s.semester_number ? `Semester ${s.semester_number}` : '-'}
                   </TableCell>
                   <TableCell>{s.student_count ?? 0}</TableCell>
                   <TableCell>
@@ -171,6 +202,9 @@ export default function AdminSections() {
         key={editing?.id ?? 'new'}
         open={formOpen}
         section={editing}
+        departments={departments || []}
+        courses={courses?.items || []}
+        semesters={semesters || []}
         onClose={() => {
           setFormOpen(false)
           setEditing(null)
@@ -202,12 +236,18 @@ export default function AdminSections() {
 function SectionForm({
   open,
   section,
+  departments,
+  courses,
+  semesters,
   onClose,
   onSubmit,
   submitting,
 }: {
   open: boolean
   section: Section | null
+  departments: Department[]
+  courses: Course[]
+  semesters: Semester[]
   onClose: () => void
   onSubmit: (payload: Partial<Section>) => void
   submitting: boolean
@@ -215,6 +255,15 @@ function SectionForm({
   const [name, setName] = useState(section?.name ?? '')
   const [description, setDescription] = useState(section?.description ?? '')
   const [isActive, setIsActive] = useState(section?.is_active ?? true)
+  const [departmentId, setDepartmentId] = useState(section?.course_id ? '' : '')
+  const [courseId, setCourseId] = useState(section?.course_id?.toString() ?? '')
+  const [semesterId, setSemesterId] = useState(section?.semester_id?.toString() ?? '')
+
+  const handleDepartmentChange = (val: string) => {
+    setDepartmentId(val)
+    setCourseId('')
+    setSemesterId('')
+  }
 
   return (
     <Modal
@@ -227,7 +276,13 @@ function SectionForm({
             Cancel
           </Button>
           <Button
-            onClick={() => onSubmit({ name: name.trim(), description: description.trim() || undefined, is_active: isActive })}
+            onClick={() => onSubmit({ 
+              name: name.trim(), 
+              description: description.trim() || undefined, 
+              is_active: isActive,
+              course_id: courseId ? Number(courseId) : undefined,
+              semester_id: semesterId ? Number(semesterId) : undefined,
+            })}
             disabled={submitting || !name.trim()}
           >
             {section ? 'Save changes' : 'Create'}
@@ -238,6 +293,38 @@ function SectionForm({
       <div className="space-y-4">
         <Field label="Name" required>
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. A" maxLength={10} />
+        </Field>
+        <Field label="Department" required>
+          <Select value={departmentId} onChange={(e) => handleDepartmentChange(e.target.value)}>
+            <option value="">Select department</option>
+            {departments.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        {departmentId && (
+          <Field label="Course">
+            <Select value={courseId} onChange={(e) => setCourseId(e.target.value)}>
+              <option value="">All courses</option>
+              {courses.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
+        <Field label="Semester">
+          <Select value={semesterId} onChange={(e) => setSemesterId(e.target.value)}>
+            <option value="">All semesters</option>
+            {semesters.map((s) => (
+              <option key={s.id} value={s.id}>
+                Semester {s.semester_number}
+              </option>
+            ))}
+          </Select>
         </Field>
         <Field label="Description">
           <Textarea
