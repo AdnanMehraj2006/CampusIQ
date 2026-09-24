@@ -19,9 +19,9 @@ class StudentCreate(BaseModel):
     college_id: str = Field(..., min_length=3, max_length=32)
     enrollment_number: str = Field(..., min_length=3, max_length=32)
     department_id: int
-    course_id: Optional[int] = None
-    semester_id: Optional[int] = None
-    section: str = Field("A", max_length=10)
+    course_id: int
+    semester_id: int
+    section: str = Field(..., max_length=10)
     admission_year: int = Field(..., ge=2000, le=2100)
     phone: Optional[str] = None
     guardian_name: Optional[str] = None

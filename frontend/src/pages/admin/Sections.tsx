@@ -290,7 +290,7 @@ function SectionForm({
               course_id: courseId ? Number(courseId) : undefined,
               semester_id: semesterId ? Number(semesterId) : undefined,
             })}
-            disabled={submitting || !name.trim()}
+            disabled={submitting || !name.trim() || !courseId || !semesterId}
           >
             {section ? 'Save changes' : 'Create'}
           </Button>
@@ -324,7 +324,7 @@ function SectionForm({
           </Field>
         )}
         {courseId && (
-          <Field label="Semester">
+          <Field label="Semester" required>
             <Select value={semesterId} onChange={(e) => setSemesterId(e.target.value)}>
               <option value="">Select semester</option>
               {semesters.map((s) => (

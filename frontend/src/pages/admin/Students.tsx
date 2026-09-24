@@ -29,17 +29,18 @@ export default function AdminStudents() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [departmentId, setDepartmentId] = useState('')
+  const [courseId, setCourseId] = useState('')
+  const [semesterId, setSemesterId] = useState('')
   const [section, setSection] = useState('')
   const [editing, setEditing] = useState<Student | null>(null)
   const [deactivating, setDeactivating] = useState<Student | null>(null)
   const [credentials, setCredentials] = useState<CreatedCredentials | null>(null)
   const [crRemoving, setCrRemoving] = useState<Student | null>(null)
-  const [courseId, setCourseId] = useState('')
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['admin-students', page, search, departmentId, section],
+    queryKey: ['admin-students', page, search, departmentId, semesterId, section],
     queryFn: () =>
-      api.getStudents({ page, pageSize: 15, q: search || undefined, departmentId: departmentId ? Number(departmentId) : undefined, section: section || undefined }),
+      api.getStudents({ page, pageSize: 15, q: search || undefined, departmentId: departmentId ? Number(departmentId) : undefined, semesterId: semesterId ? Number(semesterId) : undefined, section: section || undefined }),
   })
 
   const { data: departments } = useQuery({
@@ -48,26 +49,26 @@ export default function AdminStudents() {
   })
 
   const { data: courses } = useQuery({
-    queryKey: ['form-courses', departmentId],
+    queryKey: ['admin-courses', departmentId],
     queryFn: () => api.getCourses({ departmentId: departmentId ? Number(departmentId) : undefined }),
     enabled: departmentId !== '',
   })
 
   const { data: semesters } = useQuery({
-    queryKey: ['form-semesters', courseId],
+    queryKey: ['admin-semesters', courseId],
     queryFn: () => api.getSemesters(courseId ? Number(courseId) : undefined),
     enabled: courseId !== '',
   })
 
   const { data: sectionsData } = useQuery({
-    queryKey: ['form-sections', departmentId],
-    queryFn: () => api.getSections({ departmentId: departmentId ? Number(departmentId) : undefined }),
-    enabled: departmentId !== '',
+    queryKey: ['admin-sections', courseId, semesterId],
+    queryFn: () => api.getSections({ courseId: courseId ? Number(courseId) : undefined, semesterId: semesterId ? Number(semesterId) : undefined }),
+    enabled: courseId !== '' && semesterId !== '',
   })
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-students'] })
-    queryClient.invalidateQueries({ queryKey: ['form-sections'] })
+    queryClient.invalidateQueries({ queryKey: ['admin-sections'] })
   }
 
   const deleteMutation = useMutation({
@@ -167,15 +168,7 @@ export default function AdminStudents() {
               </option>
             ))}
           </Select>
-          <Select value={section} onChange={(e) => { setSection(e.target.value); setPage(1) }} className="sm:w-40">
-            <option value="">All sections</option>
-            {sections.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </Select>
-          <Button onClick={() => setEditing({} as Student)} className="flex items-center gap-2">
+            <Button onClick={() => setEditing({} as Student)} className="flex items-center gap-2">
             <Plus className="w-4 h-4" />
             Add Student
           </Button>
@@ -411,7 +404,12 @@ function StudentModal({
     setSection('')
   }
 
-  const canSubmit = name.trim() && email.trim() && enrollmentNumber.trim() && departmentId && section && admissionYear
+  const handleSemesterChange = (val: string) => {
+    setSemesterId(val)
+    setSection('')
+  }
+
+  const canSubmit = name.trim() && email.trim() && enrollmentNumber.trim() && departmentId && courseId && semesterId && section && admissionYear
 
   return (
     <Modal
@@ -465,29 +463,30 @@ function StudentModal({
             ))}
           </Select>
         </Field>
-        {departmentId && (
-          <Field label="Course">
-            <Select value={courseId} onChange={(e) => handleCourseChange(e.target.value)}>
-              <option value="">All courses</option>
-              {courses.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
+        <Field label="Course" required>
+          <Select value={courseId} onChange={(e) => handleCourseChange(e.target.value)}>
+            <option value="">Select course</option>
+            {courses.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        {courseId && (
+          <Field label="Semester" required>
+            <Select value={semesterId} onChange={(e) => handleSemesterChange(e.target.value)}>
+              <option value="">Select semester</option>
+              {semesters.map((s) => (
+                <option key={s.id} value={s.id}>
+                  Semester {s.semester_number}
                 </option>
               ))}
             </Select>
           </Field>
         )}
-        <Field label="Semester">
-          <Select value={semesterId} onChange={(e) => { setSemesterId(e.target.value); setSection('') }}>
-            <option value="">Select semester</option>
-            {semesters.map((s) => (
-              <option key={s.id} value={s.id}>
-                Semester {s.semester_number}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label="Section" required>
+        {semesterId && (
+          <Field label="Section" required>
           <Select value={section} onChange={(e) => setSection(e.target.value)}>
             <option value="">Select section</option>
             {sections.map((s) => (
@@ -497,6 +496,7 @@ function StudentModal({
             ))}
           </Select>
         </Field>
+        )}
         <Field label="Admission year" required>
           <Input type="number" value={admissionYear} onChange={(e) => setAdmissionYear(e.target.value)} min={2000} max={2100} />
         </Field>

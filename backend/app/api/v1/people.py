@@ -99,8 +99,7 @@ MAX_CRS_PER_CLASS = 2
 def _validate_academic_context(db: Session, payload: object) -> None:
     """Authoritative backend validation of create/update academic fields.
 
-    Frontend selects constrain choices for convenience, but this is the
-    authority: an invalid section/course/semester is rejected here.
+    Course, Semester, and Section are REQUIRED fields.
     """
     from app.models.academic import Section
 
@@ -109,48 +108,48 @@ def _validate_academic_context(db: Session, payload: object) -> None:
     section_name = getattr(payload, "section", None)
     dept_id = getattr(payload, "department_id", None)
 
+    # Require course, semester, and section
+    if course_id is None:
+        raise BadRequestError("Course is required.")
+    if semester_id is None:
+        raise BadRequestError("Semester is required.")
+    if not section_name:
+        raise BadRequestError("Section is required.")
+
     # Validate course exists and belongs to selected department
-    if course_id:
-        course = db.get(Course, course_id)
-        if not course:
-            raise BadRequestError("Course does not exist.")
-        if dept_id and course.department_id != dept_id:
-            raise BadRequestError("Selected course does not belong to the chosen department.")
+    course = db.get(Course, course_id)
+    if not course:
+        raise BadRequestError("Course does not exist.")
+    if dept_id and course.department_id != dept_id:
+        raise BadRequestError("Selected course does not belong to the chosen department.")
 
     # Validate semester exists and belongs to selected course
-    if semester_id:
-        semester = db.get(Semester, semester_id)
-        if not semester:
-            raise BadRequestError("Semester does not exist.")
-        if course_id and semester.course_id is not None and semester.course_id != course_id:
-            raise BadRequestError("Selected semester does not belong to the chosen course.")
+    semester = db.get(Semester, semester_id)
+    if not semester:
+        raise BadRequestError("Semester does not exist.")
+    if semester.course_id is not None and semester.course_id != course_id:
+        raise BadRequestError("Selected semester does not belong to the chosen course.")
 
-    # Validate section exists - backward compatible:
-    # - If semester_id is provided, section must match that semester
-    # - If course_id is provided, section must match that course
-    # - If neither is provided, section just needs to exist
-    if section_name:
-        active_sections = (
-            db.query(Section)
-            .filter(Section.is_active.is_(True))
-            .all()
+    # Validate section exists with matching context
+    active_sections = (
+        db.query(Section)
+        .filter(Section.is_active.is_(True))
+        .filter(Section.course_id == course_id)
+        .filter(Section.semester_id == semester_id)
+        .all()
+    )
+    if not active_sections:
+        raise BadRequestError(
+            f"No active sections found for the selected course and semester. "
+            f"Create a section under Sections first."
         )
-        if not active_sections:
-            # Bootstrap-friendly: allow any section name until sections exist
-            return
-        
-        # Check if section name exists with matching context
-        context_matched = any(
-            s.name == section_name and
-            (semester_id is None or s.semester_id is None or s.semester_id == semester_id) and
-            (course_id is None or s.course_id is None or s.course_id == course_id)
-            for s in active_sections
+    
+    context_matched = any(s.name == section_name for s in active_sections)
+    if not context_matched:
+        raise BadRequestError(
+            f"Section '{section_name}' does not exist for the selected course and semester. "
+            f"Available: {', '.join(s.name for s in active_sections)}."
         )
-        
-        if not context_matched:
-            raise BadRequestError(
-                f"Section '{section_name}' does not exist. Create it under Sections first."
-            )
 
 
 def _cr_count_in_class(
