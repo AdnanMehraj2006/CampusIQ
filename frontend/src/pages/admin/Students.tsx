@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, getApiErrorMessage } from '@/lib/api'
-import { Student, Department, Course, Semester } from '@/types'
+import { Student, Department, Course } from '@/types'
 import { PageHeader } from '@/components/ui/page-header'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -30,17 +30,15 @@ export default function AdminStudents() {
   const [search, setSearch] = useState('')
   const [departmentId, setDepartmentId] = useState('')
   const [courseId, setCourseId] = useState('')
-  const [semesterId, setSemesterId] = useState('')
-  const [section, setSection] = useState('')
   const [editing, setEditing] = useState<Student | null>(null)
   const [deactivating, setDeactivating] = useState<Student | null>(null)
   const [credentials, setCredentials] = useState<CreatedCredentials | null>(null)
   const [crRemoving, setCrRemoving] = useState<Student | null>(null)
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['admin-students', page, search, departmentId, semesterId, section],
+    queryKey: ['admin-students', page, search, departmentId, courseId],
     queryFn: () =>
-      api.getStudents({ page, pageSize: 15, q: search || undefined, departmentId: departmentId ? Number(departmentId) : undefined, semesterId: semesterId ? Number(semesterId) : undefined, section: section || undefined }),
+      api.getStudents({ page, pageSize: 15, q: search || undefined, departmentId: departmentId ? Number(departmentId) : undefined }),
   })
 
   const { data: departments } = useQuery({
@@ -54,21 +52,8 @@ export default function AdminStudents() {
     enabled: departmentId !== '',
   })
 
-  const { data: semesters } = useQuery({
-    queryKey: ['admin-semesters', courseId],
-    queryFn: () => api.getSemesters(courseId ? Number(courseId) : undefined),
-    enabled: courseId !== '',
-  })
-
-  const { data: sectionsData } = useQuery({
-    queryKey: ['admin-sections', courseId, semesterId],
-    queryFn: () => api.getSections({ courseId: courseId ? Number(courseId) : undefined, semesterId: semesterId ? Number(semesterId) : undefined }),
-    enabled: courseId !== '' && semesterId !== '',
-  })
-
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-students'] })
-    queryClient.invalidateQueries({ queryKey: ['admin-sections'] })
   }
 
   const deleteMutation = useMutation({
@@ -140,7 +125,6 @@ export default function AdminStudents() {
 
   const students = data?.items || []
   const pagination = data?.pagination
-  const sections = sectionsData?.items?.map((s) => s.name) || []
 
   return (
     <div className="space-y-6">
@@ -191,7 +175,6 @@ export default function AdminStudents() {
                 <TableHead>Student</TableHead>
                 <TableHead>Enrollment</TableHead>
                 <TableHead>Department</TableHead>
-                <TableHead>Section</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -206,7 +189,6 @@ export default function AdminStudents() {
                   </TableCell>
                   <TableCell className="font-mono text-xs">{s.enrollment_number}</TableCell>
                   <TableCell>{s.department_name ?? '-'}</TableCell>
-                  <TableCell>{s.section}</TableCell>
                   <TableCell>
                     <Badge variant={s.role === 'CR' ? 'warning' : 'info'}>
                       {s.role}
@@ -314,8 +296,6 @@ export default function AdminStudents() {
         student={editing}
         departments={departments || []}
         courses={courses?.items || []}
-        semesters={semesters || []}
-        sections={sections}
         submitting={createMutation.isPending || updateMutation.isPending}
         onClose={() => setEditing(null)}
         onSubmit={(payload) => {
@@ -366,8 +346,6 @@ function StudentModal({
   student,
   departments,
   courses,
-  semesters,
-  sections,
   submitting,
   onClose,
   onSubmit,
@@ -375,8 +353,6 @@ function StudentModal({
   student: Student | null
   departments: Department[]
   courses: Course[]
-  semesters: Semester[]
-  sections: string[]
   submitting?: boolean
   onClose: () => void
   onSubmit: (payload: Record<string, unknown>) => void
@@ -386,30 +362,15 @@ function StudentModal({
   const [enrollmentNumber, setEnrollmentNumber] = useState(student?.enrollment_number ?? '')
   const [departmentId, setDepartmentId] = useState(student?.department_id?.toString() ?? '')
   const [courseId, setCourseId] = useState(student?.course_id?.toString() ?? '')
-  const [semesterId, setSemesterId] = useState(student?.semester_id?.toString() ?? '')
-  const [section, setSection] = useState(student?.section ?? '')
   const [admissionYear, setAdmissionYear] = useState(student?.admission_year?.toString() ?? '')
   const [collegeId, setCollegeId] = useState(student?.college_id ?? '')
 
   const handleDepartmentChange = (val: string) => {
     setDepartmentId(val)
     setCourseId('')
-    setSemesterId('')
-    setSection('')
   }
 
-  const handleCourseChange = (val: string) => {
-    setCourseId(val)
-    setSemesterId('')
-    setSection('')
-  }
-
-  const handleSemesterChange = (val: string) => {
-    setSemesterId(val)
-    setSection('')
-  }
-
-  const canSubmit = name.trim() && email.trim() && enrollmentNumber.trim() && departmentId && courseId && semesterId && section && admissionYear
+  const canSubmit = name.trim() && email.trim() && enrollmentNumber.trim() && departmentId && courseId && admissionYear
 
   return (
     <Modal
@@ -428,8 +389,6 @@ function StudentModal({
               enrollment_number: enrollmentNumber.trim(),
               department_id: Number(departmentId),
               course_id: courseId ? Number(courseId) : undefined,
-              semester_id: semesterId ? Number(semesterId) : undefined,
-              section,
               admission_year: Number(admissionYear),
               college_id: collegeId.trim() || undefined,
             })}
@@ -464,7 +423,7 @@ function StudentModal({
           </Select>
         </Field>
         <Field label="Course" required>
-          <Select value={courseId} onChange={(e) => handleCourseChange(e.target.value)}>
+          <Select value={courseId} onChange={(e) => { setCourseId(e.target.value); }}>
             <option value="">Select course</option>
             {courses.map((c) => (
               <option key={c.id} value={c.id}>
@@ -473,30 +432,6 @@ function StudentModal({
             ))}
           </Select>
         </Field>
-        {courseId && (
-          <Field label="Semester" required>
-            <Select value={semesterId} onChange={(e) => handleSemesterChange(e.target.value)}>
-              <option value="">Select semester</option>
-              {semesters.map((s) => (
-                <option key={s.id} value={s.id}>
-                  Semester {s.semester_number}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        )}
-        {semesterId && (
-          <Field label="Section" required>
-          <Select value={section} onChange={(e) => setSection(e.target.value)}>
-            <option value="">Select section</option>
-            {sections.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        )}
         <Field label="Admission year" required>
           <Input type="number" value={admissionYear} onChange={(e) => setAdmissionYear(e.target.value)} min={2000} max={2100} />
         </Field>
