@@ -15,7 +15,7 @@ from app.models.base import TimestampMixin
 from app.database import Base
 
 if TYPE_CHECKING:
-    from app.models.academic import Course, Department, Semester
+    from app.models.academic import Course, Department
     from app.models.marks import Mark
     from app.models.project import ProjectGroupMember
     from app.models.timetable import Attendance
@@ -31,8 +31,6 @@ class Student(Base, TimestampMixin):
 
     department_id: Mapped[int] = mapped_column(ForeignKey("departments.id", ondelete="RESTRICT"), nullable=False, index=True)
     course_id: Mapped[Optional[int]] = mapped_column(ForeignKey("courses.id", ondelete="SET NULL"), nullable=True)
-    semester_id: Mapped[Optional[int]] = mapped_column(ForeignKey("semesters.id", ondelete="SET NULL"), nullable=True, index=True)
-    section: Mapped[str] = mapped_column(String(10), default="A", nullable=False, index=True)
     admission_year: Mapped[int] = mapped_column(Integer, nullable=False)
     guardian_name: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
     guardian_phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
@@ -40,7 +38,6 @@ class Student(Base, TimestampMixin):
     user: Mapped["User"] = relationship(back_populates="student_profile")
     department: Mapped["Department"] = relationship(back_populates="students")
     course: Mapped[Optional["Course"]] = relationship(back_populates="students")
-    semester: Mapped[Optional["Semester"]] = relationship()
 
     attendance: Mapped[List["Attendance"]] = relationship(back_populates="student", cascade="all, delete-orphan")
     marks: Mapped[List["Mark"]] = relationship(back_populates="student", cascade="all, delete-orphan")

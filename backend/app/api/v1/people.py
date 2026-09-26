@@ -14,7 +14,7 @@ from app.core.deps import (
 from app.core.exceptions import BadRequestError, ConflictError, ForbiddenError, NotFoundError
 from app.core.permissions import Permission, Role, permissions_for_role
 from app.database import get_db
-from app.models.academic import Course, Department, Semester
+from app.models.academic import Course, Department
 from app.models.people import Faculty, Student
 from app.models.user import User, UserStatus
 from app.schemas import (
@@ -39,7 +39,6 @@ def _student_out(db: Session, s: Student) -> dict:
     user = s.user
     dept = s.department.name if s.department else None
     course = s.course.name if s.course else None
-    sem = s.semester.semester_number if s.semester else None
     analytics = student_analytics(db, s.id)
     return {
         "id": s.id,
@@ -47,8 +46,6 @@ def _student_out(db: Session, s: Student) -> dict:
         "enrollment_number": s.enrollment_number,
         "department_id": s.department_id,
         "course_id": s.course_id,
-        "semester_id": s.semester_id,
-        "section": s.section,
         "admission_year": s.admission_year,
         "guardian_name": s.guardian_name,
         "guardian_phone": s.guardian_phone,
@@ -60,7 +57,6 @@ def _student_out(db: Session, s: Student) -> dict:
         "college_id": user.college_id if user else None,
         "department_name": dept,
         "course_name": course,
-        "semester_number": sem,
         "attendance_percentage": analytics["overall_percentage"],
     }
 
@@ -92,81 +88,39 @@ def _faculty_out(db: Session, f: Faculty) -> dict:
 # Shared business rules
 # ---------------------------------------------------------------------------
 
-#: At most two Class Representatives per Department + Semester + Section.
+#: At most two Class Representatives per Department.
 MAX_CRS_PER_CLASS = 2
 
 
 def _validate_academic_context(db: Session, payload: object) -> None:
     """Authoritative backend validation of create/update academic fields.
 
-    Course, Semester, and Section are REQUIRED fields.
+    Course is required and must belong to the selected department.
     """
-    from app.models.academic import Section
-
     course_id = getattr(payload, "course_id", None)
-    semester_id = getattr(payload, "semester_id", None)
-    section_name = getattr(payload, "section", None)
     dept_id = getattr(payload, "department_id", None)
 
-    # Require course, semester, and section
     if course_id is None:
         raise BadRequestError("Course is required.")
-    if semester_id is None:
-        raise BadRequestError("Semester is required.")
-    if not section_name:
-        raise BadRequestError("Section is required.")
 
-    # Validate course exists and belongs to selected department
     course = db.get(Course, course_id)
     if not course:
         raise BadRequestError("Course does not exist.")
     if dept_id and course.department_id != dept_id:
         raise BadRequestError("Selected course does not belong to the chosen department.")
 
-    # Validate semester exists and belongs to selected course
-    semester = db.get(Semester, semester_id)
-    if not semester:
-        raise BadRequestError("Semester does not exist.")
-    if semester.course_id is not None and semester.course_id != course_id:
-        raise BadRequestError("Selected semester does not belong to the chosen course.")
-
-    # Validate section exists with matching context
-    active_sections = (
-        db.query(Section)
-        .filter(Section.is_active.is_(True))
-        .filter(Section.course_id == course_id)
-        .filter(Section.semester_id == semester_id)
-        .all()
-    )
-    if not active_sections:
-        raise BadRequestError(
-            f"No active sections found for the selected course and semester. "
-            f"Create a section under Sections first."
-        )
-    
-    context_matched = any(s.name == section_name for s in active_sections)
-    if not context_matched:
-        raise BadRequestError(
-            f"Section '{section_name}' does not exist for the selected course and semester. "
-            f"Available: {', '.join(s.name for s in active_sections)}."
-        )
-
 
 def _cr_count_in_class(
     db: Session,
     department_id: int | None,
-    semester_id: int | None,
-    section: str,
     exclude_student_id: int | None = None,
 ) -> int:
-    """Count existing CRs for the same Department + Semester + Section."""
+    """Count existing CRs for the same Department."""
     q = (
         db.query(Student.id)
         .join(User, User.id == Student.user_id)
         .filter(User.role == str(Role.CR))
         .filter(Student.department_id == department_id)
-        .filter(Student.semester_id == semester_id)
-        .filter(Student.section == section)
     )
     if exclude_student_id is not None:
         q = q.filter(Student.id != exclude_student_id)
@@ -176,7 +130,7 @@ def _cr_count_in_class(
 def _assert_can_assign_cr(db: Session, current_user: User, student: Student) -> None:
     """Authorize a CR appointment and enforce the server-side 2-CR limit.
 
-    A CR assignment is bound to the student's Department + Semester + Section.
+    A CR assignment is bound to the student's Department.
     Only admins (institution-wide) and HODs (own department only) may appoint.
     """
     if current_user.role == Role.HOD:
@@ -187,11 +141,10 @@ def _assert_can_assign_cr(db: Session, current_user: User, student: Student) -> 
         raise BadRequestError("This student has no linked user account.")
     if student.user.role == Role.CR:
         return  # already a CR - idempotent re-assignment
-    existing = _cr_count_in_class(db, student.department_id, student.semester_id, student.section)
+    existing = _cr_count_in_class(db, student.department_id)
     if existing >= MAX_CRS_PER_CLASS:
         raise ConflictError(
-            f"This class already has the maximum of {MAX_CRS_PER_CLASS} CRs "
-            "for the same Department + Semester + Section. "
+            f"This department already has the maximum of {MAX_CRS_PER_CLASS} CRs. "
             "Remove or reassign an existing CR first."
         )
 

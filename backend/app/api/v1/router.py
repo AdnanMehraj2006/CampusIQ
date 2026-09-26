@@ -20,7 +20,6 @@ from app.api.v1 import (
     projects,
     reports,
     search,
-    sections,
     settings as settings_router,
     subjects,
     timetable,
@@ -39,7 +38,6 @@ api_router.include_router(classrooms.router)
 api_router.include_router(courses.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(departments.router)
-api_router.include_router(sections.router)
 api_router.include_router(people.router)
 api_router.include_router(projects.router)
 api_router.include_router(reports.router)

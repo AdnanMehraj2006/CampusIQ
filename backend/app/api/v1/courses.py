@@ -10,7 +10,7 @@ from app.core.deps import check_department_scope, pagination_params, require_per
 from app.core.exceptions import ConflictError, NotFoundError
 from app.core.permissions import Permission, Role
 from app.database import get_db
-from app.models.academic import AcademicSession, Course, Semester
+from app.models.academic import AcademicSession, Course
 from app.models.user import User
 from app.models.people import Student
 from app.models.user import User
@@ -20,9 +20,7 @@ from app.schemas import (
     AcademicSessionUpdate,
     CourseCreate,
     CourseOut,
-    CourseUpdate,
-    SemesterCreate,
-    SemesterOut,
+    CourseUpdate,
 )
 from app.schemas.common import paginated
 from app.services.audit_service import log_from_request
@@ -169,47 +167,5 @@ def update_session(
     return session
 
 
-# ---------------- Semesters ----------------
 
 
-@router.get("/semesters", response_model=list)
-def list_semesters(
-    course_id: int | None = None,
-    department_id: int | None = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission(Permission.VIEW_ANNOUNCEMENTS)),
-):
-    q = db.query(Semester)
-    # HOD can only see semesters from their department's courses
-    if current_user.role == Role.HOD and current_user.faculty_profile:
-        dept_id = current_user.faculty_profile.department_id
-        q = q.outerjoin(Semester.course).filter(Course.department_id == dept_id)
-    elif department_id:
-        q = q.outerjoin(Semester.course).filter(Course.department_id == department_id)
-    if course_id:
-        # A semester with course_id IS NULL is college-wide, so it applies to
-        # every course. Include it alongside semesters explicitly linked to the
-        # requested course (otherwise course-wide seeds leave the dropdown empty).
-        q = q.filter(or_(Semester.course_id == course_id, Semester.course_id.is_(None)))
-    return [{"id": s.id, "semester_number": s.semester_number,
-             "academic_session_id": s.academic_session_id, "course_id": s.course_id}
-            for s in q.order_by(Semester.semester_number).all()]
-
-
-@router.post("/semesters", response_model=SemesterOut, status_code=201)
-def create_semester(
-    payload: SemesterCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission(Permission.MANAGE_ACADEMIC_SESSIONS)),
-):
-    existing = db.query(Semester).filter(
-        Semester.semester_number == payload.semester_number,
-        ((Semester.course_id == payload.course_id) if payload.course_id else Semester.course_id.is_(None)),
-    ).first()
-    if existing:
-        raise ConflictError("This semester already exists for the selected course.")
-    semester = Semester(**payload.model_dump())
-    db.add(semester)
-    db.commit()
-    db.refresh(semester)
-    return semester

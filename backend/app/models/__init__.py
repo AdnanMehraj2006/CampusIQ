@@ -1,6 +1,6 @@
 """Import every mapped model so SQLAlchemy/Alembic can discover the metadata."""
 
-from app.models.academic import AcademicSession, ClassTeacher, Course, Department, Section, Semester
+from app.models.academic import AcademicSession, ClassTeacher, Course, Department
 from app.models.assignment import Assignment, AssignmentSubmission
 from app.models.classroom import Classroom
 from app.models.comms import (

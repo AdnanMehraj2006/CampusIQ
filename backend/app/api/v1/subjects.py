@@ -9,7 +9,7 @@ from app.core.deps import check_department_scope, pagination_params, require_per
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from app.core.permissions import Permission, Role
 from app.database import get_db
-from app.models.academic import Department, Semester
+from app.models.academic import Department
 from app.models.subject import Subject, SubjectAssignment
 from app.models.user import User
 from app.schemas import (

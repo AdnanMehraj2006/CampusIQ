@@ -17,7 +17,7 @@ import uuid
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.models.academic import Course, Department, Section, Semester
+from app.models.academic import Course, Department
 from app.models.people import Student
 from app.models.user import User
 from tests.conftest import auth_headers, login

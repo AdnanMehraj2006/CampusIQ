@@ -8,7 +8,7 @@ from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import ForbiddenError
-from app.models.academic import Course, Department, Semester
+from app.models.academic import Course, Department
 from app.models.comms import Announcement, AnnouncementTarget, NotificationType, Priority
 from app.models.people import Faculty, Student
 from app.models.subject import SubjectAssignment

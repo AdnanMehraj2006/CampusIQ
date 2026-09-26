@@ -16,20 +16,18 @@ if TYPE_CHECKING:
 
 
 class ClassTeacher(Base, TimestampMixin):
-    """Faculty responsibility for class/section oversight."""
+    """Faculty responsibility for class oversight."""
 
     __tablename__ = "class_teachers"
     __table_args__ = (
-        UniqueConstraint("faculty_id", "section", "semester_id", name="uq_class_teacher"),
+        UniqueConstraint("faculty_id", "section", name="uq_class_teacher"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     faculty_id: Mapped[int] = mapped_column(ForeignKey("faculty.id", ondelete="CASCADE"), nullable=False, index=True)
     section: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
-    semester_id: Mapped[Optional[int]] = mapped_column(ForeignKey("semesters.id", ondelete="SET NULL"), nullable=True)
 
     faculty: Mapped["Faculty"] = relationship()
-    semester: Mapped[Optional["Semester"]] = relationship()
 
 
 class Department(Base, TimestampMixin):
@@ -77,36 +75,4 @@ class AcademicSession(Base, TimestampMixin):
     semesters: Mapped[List["Semester"]] = relationship(back_populates="academic_session", cascade="all, delete-orphan")
 
 
-class Section(Base, TimestampMixin):
-    """Academic section for class grouping (e.g., A, B, C).
-    
-    Section identity is contextual: the same name (e.g., "A") can exist
-    in different course/semester combinations.
-    """
 
-    __tablename__ = "sections"
-    __table_args__ = (
-        UniqueConstraint("course_id", "semester_id", "name", name="uq_sections_context"),
-    )
-
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
-    description: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
-    is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
-    course_id: Mapped[Optional[int]] = mapped_column(ForeignKey("courses.id", ondelete="SET NULL"), nullable=True)
-    semester_id: Mapped[Optional[int]] = mapped_column(ForeignKey("semesters.id", ondelete="SET NULL"), nullable=True)
-
-    course: Mapped[Optional["Course"]] = relationship()
-    semester: Mapped[Optional["Semester"]] = relationship()
-
-
-class Semester(Base, TimestampMixin):
-    __tablename__ = "semesters"
-
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    semester_number: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
-    academic_session_id: Mapped[Optional[int]] = mapped_column(ForeignKey("academic_sessions.id", ondelete="SET NULL"), nullable=True)
-    course_id: Mapped[Optional[int]] = mapped_column(ForeignKey("courses.id", ondelete="CASCADE"), nullable=True)
-
-    academic_session: Mapped[Optional["AcademicSession"]] = relationship(back_populates="semesters")
-    subjects: Mapped[List["Subject"]] = relationship(back_populates="semester")

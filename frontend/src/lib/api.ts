@@ -12,8 +12,6 @@ import {
   ClassTeacher,
   Department,
   Course,
-  Semester,
-  Section,
   AcademicSession,
   SystemSetting,
   CRRequest,
@@ -671,15 +669,11 @@ class ApiClient {
     pageSize?: number
     q?: string
     departmentId?: number
-    section?: string
-    semesterId?: number
   } = {}) => {
-    const { page = 1, pageSize = 20, q, departmentId, section, semesterId } = params
+    const { page = 1, pageSize = 20, q, departmentId } = params
     const parts = [`page=${page}`, `page_size=${pageSize}`]
     if (q) parts.push(`q=${encodeURIComponent(q)}`)
     if (departmentId) parts.push(`department_id=${departmentId}`)
-    if (section) parts.push(`section=${encodeURIComponent(section)}`)
-    if (semesterId) parts.push(`semester_id=${semesterId}`)
     return this.request<PaginatedResponse<Student>>(`/students?${parts.join('&')}`)
   }
 
@@ -725,15 +719,11 @@ class ApiClient {
     pageSize?: number
     q?: string
     departmentId?: number
-    semesterId?: number
-    section?: string
   } = {}) => {
-    const { page = 1, pageSize = 50, q, departmentId, semesterId, section } = params
+    const { page = 1, pageSize = 50, q, departmentId } = params
     const parts = [`page=${page}`, `page_size=${pageSize}`]
     if (q) parts.push(`q=${encodeURIComponent(q)}`)
     if (departmentId) parts.push(`department_id=${departmentId}`)
-    if (semesterId) parts.push(`semester_id=${semesterId}`)
-    if (section) parts.push(`section=${encodeURIComponent(section)}`)
     return this.request<PaginatedResponse<Student>>(`/cr-assignments?${parts.join('&')}`)
   }
 
@@ -838,42 +828,6 @@ class ApiClient {
     })
   }
 
-  getSemesters = async (courseId?: number) => {
-    return this.request<Semester[]>(
-      courseId ? `/semesters?course_id=${courseId}` : '/semesters'
-    )
-  }
-
-  getSections = async (params: { page?: number; pageSize?: number; q?: string; isActive?: boolean; courseId?: number; semesterId?: number; departmentId?: number } = {}) => {
-    const { page = 1, pageSize = 50, q, isActive, courseId, semesterId, departmentId } = params
-    const parts = [`page=${page}`, `page_size=${pageSize}`]
-    if (q) parts.push(`q=${encodeURIComponent(q)}`)
-    if (isActive !== undefined) parts.push(`is_active=${isActive}`)
-    if (courseId !== undefined) parts.push(`course_id=${courseId}`)
-    if (semesterId !== undefined) parts.push(`semester_id=${semesterId}`)
-    if (departmentId !== undefined) parts.push(`department_id=${departmentId}`)
-    return this.request<PaginatedResponse<Section>>(`/sections?${parts.join('&')}`)
-  }
-
-  getAllSections = async (isActive?: boolean) => {
-    return this.request<Section[]>(
-      isActive !== undefined ? `/sections/all?is_active=${isActive}` : '/sections/all'
-    )
-  }
-
-  createSection = async (data: Partial<Section>) => {
-    return this.request<Section>('/sections', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    })
-  }
-
-  updateSection = async (id: number, data: Partial<Section>) => {
-    return this.request<Section>(`/sections/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    })
-  }
 
   deleteSection = async (id: number) => {
     return this.request(`/sections/${id}`, {

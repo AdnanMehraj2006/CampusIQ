@@ -20,8 +20,6 @@ class StudentCreate(BaseModel):
     enrollment_number: str = Field(..., min_length=3, max_length=32)
     department_id: int
     course_id: int
-    semester_id: int
-    section: str = Field(..., max_length=10)
     admission_year: int = Field(..., ge=2000, le=2100)
     phone: Optional[str] = None
     guardian_name: Optional[str] = None
@@ -36,8 +34,6 @@ class StudentUpdate(BaseModel):
     phone: Optional[str] = None
     department_id: Optional[int] = None
     course_id: Optional[int] = None
-    semester_id: Optional[int] = None
-    section: Optional[str] = None
     guardian_name: Optional[str] = None
     guardian_phone: Optional[str] = None
     is_cr: Optional[bool] = None
@@ -49,8 +45,6 @@ class StudentOut(ORMModel):
     enrollment_number: str
     department_id: int
     course_id: Optional[int] = None
-    semester_id: Optional[int] = None
-    section: str
     admission_year: int
     guardian_name: Optional[str] = None
     guardian_phone: Optional[str] = None
@@ -63,7 +57,6 @@ class StudentOut(ORMModel):
     college_id: str
     department_name: Optional[str] = None
     course_name: Optional[str] = None
-    semester_number: Optional[int] = None
     attendance_percentage: Optional[float] = None
     # Surfaced exactly once when the account is created with a server-generated
     # password; never persisted (only the hash is).

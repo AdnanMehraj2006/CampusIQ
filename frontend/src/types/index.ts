@@ -37,8 +37,6 @@ export interface Student {
   enrollment_number: string
   department_id: number
   course_id?: number | null
-  semester_id?: number | null
-  section: string
   admission_year: number
   guardian_name?: string | null
   guardian_phone?: string | null
@@ -50,7 +48,6 @@ export interface Student {
   college_id: string
   department_name?: string | null
   course_name?: string | null
-  semester_number?: number | null
   attendance_percentage?: number | null
 }
 
@@ -77,10 +74,8 @@ export interface Subject {
   name: string
   credits: number
   department_id: number
-  semester_id?: number | null
   weekly_periods?: number
   department_name?: string | null
-  semester_number?: number | null
 }
 
 export interface SubjectAssignment {
@@ -88,7 +83,6 @@ export interface SubjectAssignment {
   subject_id: number
   faculty_id: number
   section: string
-  semester_id?: number | null
   subject_name?: string | null
   subject_code?: string | null
   faculty_name?: string | null
@@ -98,7 +92,6 @@ export interface ClassTeacher {
   id: number
   faculty_id: number
   section: string
-  semester_id?: number | null
   faculty_name?: string | null
 }
 
@@ -122,27 +115,6 @@ export interface Course {
   description?: string | null
   department_name?: string | null
   student_count?: number
-}
-
-export interface Semester {
-  id: number
-  semester_number: number
-  course_id?: number | null
-  academic_session_id?: number | null
-}
-
-export interface Section {
-  id: number
-  name: string
-  description?: string | null
-  is_active: boolean
-  course_id?: number | null
-  semester_id?: number | null
-  course_name?: string | null
-  semester_number?: number | null
-  student_count?: number | null
-  created_at?: string | null
-  updated_at?: string | null
 }
 
 export interface AcademicSession {
@@ -222,7 +194,6 @@ export interface TimetableEntry {
   faculty_id: number
   classroom_id: number
   section: string
-  semester_id: number
   subject_name?: string
   subject_code?: string
   faculty_name?: string
