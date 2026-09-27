@@ -375,3 +375,37 @@ def test_admin_can_update_student(
     )
     assert response.status_code == 200, response.text
     assert response.json()["guardian_name"] == "Updated Guardian"
+
+
+def test_student_update_requires_valid_numeric_id(client: TestClient, admin_headers: dict):
+    """Regression: ensure frontend create mode never generates PUT /students/undefined.
+
+    The bug was that form initialization used {} as Student which made
+    `editing` truthy but editing.id was undefined. This test ensures
+    the backend correctly rejects non-numeric/missing student IDs.
+    """
+    import pytest
+
+    # Test with 'undefined' string (JavaScript's undefined JSON-serialized)
+    response = client.put(
+        "/api/v1/students/undefined",
+        json={"guardian_name": "Test"},
+        headers=admin_headers,
+    )
+    assert response.status_code in (404, 422), response.text
+
+    # Test with empty string
+    response = client.put(
+        "/api/v1/students/",
+        json={"guardian_name": "Test"},
+        headers=admin_headers,
+    )
+    assert response.status_code in (404, 422, 405), response.text
+
+    # Test with null
+    response = client.put(
+        "/api/v1/students/null",
+        json={"guardian_name": "Test"},
+        headers=admin_headers,
+    )
+    assert response.status_code in (404, 422), response.text

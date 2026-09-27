@@ -31,6 +31,7 @@ export default function AdminStudents() {
   const [departmentId, setDepartmentId] = useState('')
   const [courseId, setCourseId] = useState('')
   const [editing, setEditing] = useState<Student | null>(null)
+  const [isCreating, setIsCreating] = useState(false)
   const [deactivating, setDeactivating] = useState<Student | null>(null)
   const [credentials, setCredentials] = useState<CreatedCredentials | null>(null)
   const [crRemoving, setCrRemoving] = useState<Student | null>(null)
@@ -152,7 +153,7 @@ export default function AdminStudents() {
               </option>
             ))}
           </Select>
-            <Button onClick={() => setEditing({} as Student)} className="flex items-center gap-2">
+            <Button onClick={() => { setIsCreating(true); setEditing(null) }} className="flex items-center gap-2">
             <Plus className="w-4 h-4" />
             Add Student
           </Button>
@@ -291,21 +292,23 @@ export default function AdminStudents() {
         </div>
       )}
 
-      <StudentModal
-        key={editing?.id ?? 'closed'}
-        student={editing}
-        departments={departments || []}
-        courses={courses?.items || []}
-        submitting={createMutation.isPending || updateMutation.isPending}
-        onClose={() => setEditing(null)}
-        onSubmit={(payload) => {
-          if (editing) {
-            updateMutation.mutate({ id: editing.id, payload })
-          } else {
-            createMutation.mutate(payload)
-          }
-        }}
-      />
+       {(isCreating || editing) && (
+        <StudentModal
+          key={editing?.id ?? 'creating'}
+          student={isCreating ? null : editing}
+          departments={departments || []}
+          courses={courses?.items || []}
+          submitting={createMutation.isPending || updateMutation.isPending}
+          onClose={() => { setIsCreating(false); setEditing(null) }}
+          onSubmit={(payload) => {
+            if (isCreating) {
+              createMutation.mutate(payload)
+            } else {
+              updateMutation.mutate({ id: editing!.id, payload })
+            }
+          }}
+        />
+      )}
 
       <ConfirmDialog
         open={!!deactivating}
