@@ -17,8 +17,6 @@ class AssignmentCreate(BaseModel):
     description: Optional[str] = None
     instructions: Optional[str] = None
     subject_id: int
-    section: Optional[str] = None
-    semester_id: Optional[int] = None
     deadline: datetime
     max_marks: int = Field(10, ge=1, le=1000)
     allow_late: bool = True
@@ -40,8 +38,6 @@ class AssignmentOut(ORMModel):
     instructions: Optional[str] = None
     subject_id: int
     faculty_id: int
-    section: Optional[str] = None
-    semester_id: Optional[int] = None
     deadline: datetime
     max_marks: int
     attachment_path: Optional[str] = None

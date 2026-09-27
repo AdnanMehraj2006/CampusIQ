@@ -114,3 +114,5 @@ class UserUpdateAdmin(BaseModel):
 class UserOutAdmin(UserPublic):
     created_at: Optional[str] = None
     must_change_password: Optional[bool] = None
+
+

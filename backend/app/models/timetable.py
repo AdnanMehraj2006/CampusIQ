@@ -39,18 +39,12 @@ WORKING_DAYS: list[DayOfWeek] = [
 
 
 class TimetableEntry(Base, TimestampMixin):
-    """One (day, period) slot for a section.
-
-    ``subject_id``/``faculty_id``/``classroom_id`` are denormalised copies of the
-    SubjectAssignment so conflict detection stays simple and history is stable.
-    """
+    """One (day, period) timetable slot."""
 
     __tablename__ = "timetable"
     __table_args__ = (
-        UniqueConstraint("day", "period", "section", "academic_session_id", name="uq_tt_section_slot"),
         UniqueConstraint("day", "period", "faculty_id", "academic_session_id", name="uq_tt_faculty_slot"),
         UniqueConstraint("day", "period", "classroom_id", "academic_session_id", name="uq_tt_room_slot"),
-        Index("ix_timetable_section_day_period", "section", "day", "period"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -62,14 +56,10 @@ class TimetableEntry(Base, TimestampMixin):
     subject_id: Mapped[int] = mapped_column(ForeignKey("subjects.id", ondelete="CASCADE"), nullable=False, index=True)
     faculty_id: Mapped[int] = mapped_column(ForeignKey("faculty.id", ondelete="CASCADE"), nullable=False, index=True)
     classroom_id: Mapped[Optional[int]] = mapped_column(ForeignKey("classrooms.id", ondelete="SET NULL"), nullable=True, index=True)
-    section: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
-    semester_id: Mapped[Optional[int]] = mapped_column(ForeignKey("semesters.id", ondelete="SET NULL"), nullable=True, index=True)
-    assignment_id: Mapped[Optional[int]] = mapped_column(ForeignKey("subject_assignments.id", ondelete="SET NULL"), nullable=True)
     academic_session_id: Mapped[Optional[int]] = mapped_column(ForeignKey("academic_sessions.id", ondelete="SET NULL"), nullable=True)
 
     subject: Mapped["Subject"] = relationship()
     faculty: Mapped["Faculty"] = relationship()
-    assignment: Mapped[Optional["SubjectAssignment"]] = relationship(back_populates="timetable_entries")
     classroom: Mapped[Optional["Classroom"]] = relationship(back_populates="timetable_entries")
 
 

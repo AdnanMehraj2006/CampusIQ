@@ -28,8 +28,6 @@ class Permission(StrEnum):
     # Academic structure
     MANAGE_DEPARTMENTS = "manage_departments"
     MANAGE_COURSES = "manage_courses"
-    MANAGE_SECTIONS = "manage_sections"
-    VIEW_SECTIONS = "view_sections"
     MANAGE_SUBJECTS = "manage_subjects"
     MANAGE_CLASSROOMS = "manage_classrooms"
     MANAGE_ACADEMIC_SESSIONS = "manage_academic_sessions"
@@ -95,7 +93,6 @@ ROLE_PERMISSIONS: dict[Role, set[Permission]] = {
         Permission.GENERATE_REPORTS,
         Permission.USE_AI_ASSISTANT,
         Permission.SUBMIT_REQUESTS,
-        Permission.VIEW_SECTIONS,
     },
     Role.FACULTY: {
         Permission.MARK_ATTENDANCE,
@@ -114,7 +111,6 @@ ROLE_PERMISSIONS: dict[Role, set[Permission]] = {
         Permission.GENERATE_REPORTS,
         Permission.USE_AI_ASSISTANT,
         Permission.SUBMIT_FEEDBACK,
-        Permission.VIEW_SECTIONS,
     },
     Role.CR: {
         Permission.VIEW_ANNOUNCEMENTS,
@@ -124,7 +120,6 @@ ROLE_PERMISSIONS: dict[Role, set[Permission]] = {
         Permission.SUBMIT_FEEDBACK,
         Permission.USE_AI_ASSISTANT,
         Permission.VIEW_STUDENTS,
-        Permission.VIEW_SECTIONS,
     },
     Role.STUDENT: {
         Permission.VIEW_OWN_MARKS,
@@ -152,3 +147,4 @@ def permissions_for_role(role: Role | str) -> set[Permission]:
 def role_has_permission(role: Role | str, permission: Permission | str) -> bool:
     perm = Permission(permission) if isinstance(permission, str) else permission
     return perm in permissions_for_role(role)
+

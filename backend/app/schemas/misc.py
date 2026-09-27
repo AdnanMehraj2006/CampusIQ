@@ -92,7 +92,6 @@ class CRRequestCreate(BaseModel):
     request_type: str = Field(..., max_length=50)
     title: str = Field(..., min_length=3, max_length=200)
     description: str = Field(..., min_length=5)
-    section: Optional[str] = None
     department_id: Optional[int] = None
 
 
@@ -104,8 +103,6 @@ class CRRequestOut(ORMModel):
     description: str
     status: str
     resolution_note: Optional[str] = None
-    section: Optional[str] = None
-    semester_id: Optional[int] = None
     department_id: Optional[int] = None
     author_name: Optional[str] = None
     created_at: str
@@ -115,7 +112,6 @@ class FeedbackCreate(BaseModel):
     target_type: str = Field(..., max_length=30)
     subject_id: Optional[int] = None
     department_id: Optional[int] = None
-    section: Optional[str] = None
     rating: int = Field(..., ge=1, le=5)
     message: str = Field(..., min_length=5)
 
@@ -126,7 +122,6 @@ class FeedbackOut(ORMModel):
     target_type: str
     subject_id: Optional[int] = None
     department_id: Optional[int] = None
-    section: Optional[str] = None
     rating: int
     message: str
     status: str

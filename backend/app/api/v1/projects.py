@@ -71,7 +71,6 @@ def _project_out(db: Session, p: Project, viewer: User | None = None) -> dict:
         "description": p.description,
         "project_code": p.project_code,
         "department_id": p.department_id,
-        "semester_id": p.semester_id,
         "supervisor_id": p.supervisor_id,
         "status": p.status,
         "deadline": p.deadline,
@@ -107,8 +106,6 @@ def list_projects(
     current_user: User = Depends(require_permission(Permission.VIEW_ANNOUNCEMENTS)),
 ):
     q = db.query(Project)
-    if current_user.role == Role.STUDENT and current_user.student_profile:
-        q = q.filter(Project.semester_id == current_user.student_profile.semester_id)
     if current_user.role == Role.FACULTY and current_user.faculty_profile:
         if mine:
             q = q.filter(Project.supervisor_id == current_user.faculty_profile.id)

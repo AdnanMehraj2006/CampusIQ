@@ -20,14 +20,17 @@ class ClassTeacher(Base, TimestampMixin):
 
     __tablename__ = "class_teachers"
     __table_args__ = (
-        UniqueConstraint("faculty_id", "section", name="uq_class_teacher"),
+        UniqueConstraint("faculty_id", "department_id", "course_id", name="uq_class_teacher"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     faculty_id: Mapped[int] = mapped_column(ForeignKey("faculty.id", ondelete="CASCADE"), nullable=False, index=True)
-    section: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    department_id: Mapped[int] = mapped_column(ForeignKey("departments.id", ondelete="CASCADE"), nullable=False, index=True)
+    course_id: Mapped[Optional[int]] = mapped_column(ForeignKey("courses.id", ondelete="SET NULL"), nullable=True)
 
     faculty: Mapped["Faculty"] = relationship()
+    department: Mapped["Department"] = relationship()
+    course: Mapped[Optional["Course"]] = relationship()
 
 
 class Department(Base, TimestampMixin):
@@ -72,7 +75,7 @@ class AcademicSession(Base, TimestampMixin):
     end_date: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
 
-    semesters: Mapped[List["Semester"]] = relationship(back_populates="academic_session", cascade="all, delete-orphan")
+
 
 
 

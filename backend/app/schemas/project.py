@@ -17,7 +17,6 @@ class ProjectCreate(BaseModel):
     title: str = Field(..., min_length=3, max_length=200)
     description: Optional[str] = None
     department_id: Optional[int] = None
-    semester_id: Optional[int] = None
     supervisor_id: int
     deadline: Optional[datetime] = None
     max_group_size: int = Field(4, ge=1, le=10)
@@ -37,7 +36,6 @@ class ProjectOut(ORMModel):
     description: Optional[str] = None
     project_code: Optional[str] = None
     department_id: Optional[int] = None
-    semester_id: Optional[int] = None
     supervisor_id: int
     status: str
     deadline: Optional[datetime] = None
@@ -114,8 +112,6 @@ class AnnouncementCreate(BaseModel):
     target_type: AnnouncementTarget = AnnouncementTarget.EVERYONE
     department_id: Optional[int] = None
     course_id: Optional[int] = None
-    semester_id: Optional[int] = None
-    section: Optional[str] = None
     priority: Priority = Priority.NORMAL
     expiry_at: Optional[datetime] = None
     is_pinned: bool = False
@@ -128,8 +124,6 @@ class AnnouncementUpdate(BaseModel):
     target_type: Optional[AnnouncementTarget] = None
     department_id: Optional[int] = None
     course_id: Optional[int] = None
-    semester_id: Optional[int] = None
-    section: Optional[str] = None
     priority: Optional[Priority] = None
     expiry_at: Optional[datetime] = None
     is_pinned: Optional[bool] = None
@@ -143,8 +137,6 @@ class AnnouncementOut(ORMModel):
     target_type: str
     department_id: Optional[int] = None
     course_id: Optional[int] = None
-    semester_id: Optional[int] = None
-    section: Optional[str] = None
     priority: str
     published_by: int
     attachment_name: Optional[str] = None
@@ -178,7 +170,6 @@ class FeedbackCreate(BaseModel):
     target_type: str = Field("subject", max_length=30)
     subject_id: Optional[int] = None
     department_id: Optional[int] = None
-    section: Optional[str] = None
     rating: int = Field(..., ge=1, le=5)
     message: str = Field(..., min_length=5)
 
@@ -189,7 +180,6 @@ class FeedbackOut(ORMModel):
     target_type: str
     subject_id: Optional[int] = None
     department_id: Optional[int] = None
-    section: Optional[str] = None
     rating: int
     message: str
     status: str
@@ -203,7 +193,6 @@ class CRRequestCreate(BaseModel):
     request_type: str = Field("other", max_length=50)
     title: str = Field(..., min_length=3, max_length=200)
     description: str = Field(..., min_length=5)
-    section: Optional[str] = None
     department_id: Optional[int] = None
 
 
@@ -215,7 +204,6 @@ class CRRequestOut(ORMModel):
     description: str
     status: str
     resolution_note: Optional[str] = None
-    section: Optional[str] = None
     author_name: Optional[str] = None
     created_at: Optional[datetime] = None
 

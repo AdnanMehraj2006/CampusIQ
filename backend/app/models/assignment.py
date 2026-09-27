@@ -26,8 +26,6 @@ class Assignment(Base, TimestampMixin):
 
     subject_id: Mapped[int] = mapped_column(ForeignKey("subjects.id", ondelete="CASCADE"), nullable=False, index=True)
     faculty_id: Mapped[int] = mapped_column(ForeignKey("faculty.id", ondelete="CASCADE"), nullable=False, index=True)
-    section: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, index=True)
-    semester_id: Mapped[Optional[int]] = mapped_column(ForeignKey("semesters.id", ondelete="SET NULL"), nullable=True)
 
     deadline: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     max_marks: Mapped[int] = mapped_column(Integer, default=10, nullable=False)

@@ -130,8 +130,6 @@ def create_cr_request(
     
     req = CRRequest(
         submitted_by=current_user.id,
-        semester_id=st.semester_id,
-        section=payload.section or st.section,
         department_id=dept_id,
         request_type=payload.request_type,
         title=payload.title,
@@ -166,8 +164,6 @@ def _cr_request_out(r: CRRequest, current_user: User) -> dict:
         "description": r.description,
         "status": r.status,
         "resolution_note": r.resolution_note,
-        "section": r.section,
-        "semester_id": r.semester_id,
         "department_id": r.department_id,
         "author_name": r.author.name if r.author else None,
         "created_at": r.created_at.isoformat() if r.created_at else None,
@@ -273,7 +269,6 @@ def create_feedback(
         target_type=payload.target_type,
         subject_id=payload.subject_id,
         department_id=payload.department_id or st.department_id,
-        section=payload.section or st.section,
         rating=payload.rating,
         message=payload.message,
     )
@@ -305,7 +300,6 @@ def _feedback_out(f: Feedback, current_user: User) -> dict:
         "target_type": f.target_type,
         "subject_id": f.subject_id,
         "department_id": f.department_id,
-        "section": f.section,
         "rating": f.rating,
         "message": f.message,
         "status": f.status,

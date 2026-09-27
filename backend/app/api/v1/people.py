@@ -100,14 +100,12 @@ def _validate_academic_context(db: Session, payload: object) -> None:
     course_id = getattr(payload, "course_id", None)
     dept_id = getattr(payload, "department_id", None)
 
-    if course_id is None:
-        raise BadRequestError("Course is required.")
-
-    course = db.get(Course, course_id)
-    if not course:
-        raise BadRequestError("Course does not exist.")
-    if dept_id and course.department_id != dept_id:
-        raise BadRequestError("Selected course does not belong to the chosen department.")
+    if course_id is not None:  # Only validate if course_id is provided
+        course = db.get(Course, course_id)
+        if not course:
+            raise BadRequestError("Course does not exist.")
+        if dept_id and course.department_id != dept_id:
+            raise BadRequestError("Selected course does not belong to the chosen department.")
 
 
 def _cr_count_in_class(
@@ -157,8 +155,6 @@ def _assert_can_assign_cr(db: Session, current_user: User, student: Student) -> 
 @router.get("/students", response_model=dict)
 def list_students(
     department_id: int | None = None,
-    section: str | None = None,
-    semester_id: int | None = None,
     db: Session = Depends(get_db),
     page_params: dict = Depends(pagination_params),
     current_user: User = Depends(require_permission(Permission.VIEW_STUDENTS)),
@@ -169,21 +165,11 @@ def list_students(
     if current_user.role == Role.FACULTY and current_user.faculty_profile:
         from app.models.subject import SubjectAssignment
 
-        sections = (
-            db.query(SubjectAssignment.section)
-            .filter(SubjectAssignment.faculty_id == current_user.faculty_profile.id)
-            .distinct()
-            .all()
-        )
-        q = q.filter(Student.section.in_([s[0] for s in sections]))
+        q = q.filter(Student.department_id == current_user.faculty_profile.department_id)
     if current_user.role == Role.CR:
-        q = q.filter(Student.section == current_user.student_profile.section) if current_user.student_profile else q.filter(False)
+        q = q.filter(Student.department_id == current_user.student_profile.department_id) if current_user.student_profile else q.filter(False)
     if department_id:
         q = q.filter(Student.department_id == department_id)
-    if section:
-        q = q.filter(Student.section == section)
-    if semester_id:
-        q = q.filter(Student.semester_id == semester_id)
     if page_params["q"]:
         q = q.filter(
             User.name.ilike(f"%{page_params['q']}%")
@@ -228,31 +214,17 @@ def _assert_student_scope(db: Session, current_user: User, student: Student) -> 
         me = current_user.student_profile
         if me is None:
             raise ForbiddenError("Your account has no student profile.")
-        # A CR may only see students within their own class context.
-        if (
-            me.department_id != student.department_id
-            or me.semester_id != student.semester_id
-            or me.section != student.section
-        ):
-            raise ForbiddenError(
-                "You can only view students in your own class "
-                "(department, semester and section)."
-            )
+        if me.department_id != student.department_id:
+            raise ForbiddenError("You can only view students in your own department.")
         return
     if current_user.role == Role.HOD:
         check_department_scope(current_user, student.department_id)
         return
     if current_user.role == Role.FACULTY:
-        from app.models.subject import SubjectAssignment
-
-        teaches = (
-            db.query(SubjectAssignment.section)
-            .filter(SubjectAssignment.faculty_id == current_user.faculty_profile.id)
-            .filter(SubjectAssignment.section == student.section)
-            .first()
-        )
-        if not teaches:
-            raise ForbiddenError("You can only view students in sections you teach.")
+        if current_user.faculty_profile is None:
+            raise ForbiddenError("No faculty profile is linked to your account.")
+        if current_user.faculty_profile.department_id != student.department_id:
+            raise ForbiddenError("You can only view students in your department.")
         return
     raise ForbiddenError("Access denied.")
 
@@ -292,8 +264,6 @@ def create_student(
         enrollment_number=payload.enrollment_number,
         department_id=payload.department_id,
         course_id=payload.course_id,
-        semester_id=payload.semester_id,
-        section=payload.section,
         admission_year=payload.admission_year,
         guardian_name=payload.guardian_name,
         guardian_phone=payload.guardian_phone,
@@ -376,8 +346,8 @@ def delete_student(
 # Class Representative (CR) assignment
 # ---------------------------------------------------------------------------
 # A CR is a normal Student account whose ``User.role == 'cr'``. The assignment
-# is bound to the student's Department + Semester + Section and at most
-# ``MAX_CRS_PER_CLASS`` CRs are allowed per class. GR is *not* a separate role:
+# is bound to the student's Department and at most
+# ``MAX_CRS_PER_CLASS`` CRs are allowed per department. GR is *not* a separate role:
 # it is informal shorthand for a female CR and is not modelled anywhere.
 
 
@@ -388,7 +358,7 @@ def assign_cr(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(Permission.MANAGE_STUDENTS)),
 ):
-    """Appoint a student as CR for their Department + Semester + Section."""
+    """Appoint a student as CR for their Department."""
     s = db.get(Student, student_id)
     if not s:
         raise NotFoundError("Student not found.")
@@ -427,8 +397,6 @@ def remove_cr(
 @router.get("/cr-assignments", response_model=dict)
 def list_cr_assignments(
     department_id: int | None = None,
-    semester_id: int | None = None,
-    section: str | None = None,
     db: Session = Depends(get_db),
     page_params: dict = Depends(pagination_params),
     current_user: User = Depends(require_permission(Permission.VIEW_STUDENTS)),
@@ -439,10 +407,6 @@ def list_cr_assignments(
         q = q.filter(Student.department_id == current_user.faculty_profile.department_id)
     if department_id:
         q = q.filter(Student.department_id == department_id)
-    if semester_id is not None:
-        q = q.filter(Student.semester_id == semester_id)
-    if section:
-        q = q.filter(Student.section == section)
     if page_params["q"]:
         q = q.filter(
             User.name.ilike(f"%{page_params['q']}%")

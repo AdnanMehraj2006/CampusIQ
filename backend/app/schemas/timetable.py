@@ -88,8 +88,6 @@ class TimetableEntryCreate(BaseModel):
     subject_id: int
     faculty_id: int
     classroom_id: Optional[int] = None
-    section: str = Field(..., max_length=10)
-    semester_id: Optional[int] = None
     start_time: Optional[str] = None
     end_time: Optional[str] = None
 
@@ -111,8 +109,6 @@ class TimetableEntryOut(ORMModel):
     subject_id: int
     faculty_id: int
     classroom_id: Optional[int] = None
-    section: str
-    semester_id: Optional[int] = None
     subject_name: Optional[str] = None
     subject_code: Optional[str] = None
     faculty_name: Optional[str] = None

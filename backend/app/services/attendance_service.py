@@ -42,32 +42,20 @@ COUNTED = (AttendanceStatus.PRESENT, AttendanceStatus.LATE, AttendanceStatus.ABS
 # ---------------------------------------------------------------------------
 
 
-def students_in_section(
+def students_in_subject(
     db: Session,
-    section: str,
-    subject_id: Optional[int] = None,
-    department_id: Optional[int] = None,
-    semester_id: Optional[int] = None,
+    subject_id: int,
 ) -> list[Student]:
-    """Students in a section, optionally restricted to the subject's semester.
+    """Students in the same department as the subject."""
+    from app.models.subject import Subject
 
-    ``department_id``/``semester_id`` narrow the class context (used to keep a
-    CR's view within their own Department + Semester + Section).
-    """
+    subject = db.get(Subject, subject_id)
+    if subject is None:
+        return []
     q = db.query(Student).join(User, User.id == Student.user_id).filter(
-        Student.section == section,
+        Student.department_id == subject.department_id,
         User.status == "active",
     )
-    if department_id is not None:
-        q = q.filter(Student.department_id == department_id)
-    if semester_id is not None:
-        q = q.filter(Student.semester_id == semester_id)
-    if subject_id is not None:
-        subject = db.get(Subject, subject_id)
-        if subject is None:
-            raise NotFoundError("Subject not found.")
-        if subject.semester_id is not None:
-            q = q.filter(Student.semester_id == subject.semester_id)
     return q.order_by(User.name).all()
 
 
@@ -83,19 +71,17 @@ def faculty_subjects(db: Session, faculty_id: int) -> list[Subject]:
     )
 
 
-def assert_faculty_owns_subject(db: Session, faculty_id: int, subject_id: int, section: Optional[str] = None) -> None:
-    """Faculty may only mark attendance for subjects/sections assigned to them."""
+def assert_faculty_owns_subject(db: Session, faculty_id: int, subject_id: int) -> None:
+    """Faculty may only mark attendance for subjects assigned to them."""
     from app.models.subject import SubjectAssignment
 
     q = db.query(SubjectAssignment).filter(
         SubjectAssignment.faculty_id == faculty_id,
         SubjectAssignment.subject_id == subject_id,
     )
-    if section:
-        q = q.filter(SubjectAssignment.section == section)
     if not q.first():
         raise ForbiddenError(
-            "You can only manage attendance for subjects and sections assigned to you."
+            "You can only manage attendance for subjects assigned to you."
         )
 
 
@@ -121,7 +107,6 @@ def mark_attendance(
     db: Session,
     *,
     subject_id: int,
-    section: str,
     on_date: date,
     marks: dict[int, str],
     marked_by: User,
@@ -131,16 +116,18 @@ def mark_attendance(
         raise NotFoundError("Subject not found.")
 
     if marked_by.role not in ("admin",):
-        assert_faculty_owns_subject(db, marked_by.faculty_profile.id if marked_by.faculty_profile else 0, subject_id, section)
+        if marked_by.faculty_profile is None:
+            raise ForbiddenError("No faculty profile is linked to your account.")
+        assert_faculty_owns_subject(db, marked_by.faculty_profile.id, subject_id)
 
-    roster = students_in_section(db, section, subject_id)
+    roster = students_in_subject(db, subject_id)
     if not roster:
-        raise BadRequestError(f"No active students found in section {section} for this subject.")
+        raise BadRequestError(f"No active students found for this subject.")
 
     roster_ids = {s.id for s in roster}
     unknown = set(marks.keys()) - roster_ids
     if unknown:
-        raise BadRequestError("Some marked students do not belong to this section.")
+        raise BadRequestError("Some marked students do not belong to this department.")
 
     existing = (
         db.query(Attendance)
@@ -448,26 +435,20 @@ def predict_attendance(
 
 def class_attendance_overview(
     db: Session,
-    section: str,
+    department_id: int,
     subject_id: Optional[int] = None,
-    department_id: Optional[int] = None,
-    semester_id: Optional[int] = None,
 ) -> dict:
-    """Aggregate attendance for a section, per subject.
-
-    When ``department_id``/``semester_id`` are given the roster is restricted to
-    that single class context (Department + Semester + Section).
-    """
-    roster = students_in_section(db, section, department_id=department_id, semester_id=semester_id)
+    """Aggregate attendance for a department, per subject."""
+    q = db.query(Student).join(User, User.id == Student.user_id).filter(
+        Student.department_id == department_id,
+        User.status == "active",
+    )
+    roster = q.order_by(User.name).all()
     if not roster:
-        return {"section": section, "subjects": [], "overall": 0.0, "students": []}
+        return {"subjects": [], "overall": 0.0, "students": []}
 
-    subject_ids = [s.id for s in faculty_subjects_by_section(db, section)] if not subject_id else [subject_id]
-    subjects_q = db.query(Subject).filter(Subject.id.in_(subject_ids)) if subject_ids else None
-    if subjects_q is not None and department_id is not None:
-        # Keep the CR's view inside their own department's subjects.
-        subjects_q = subjects_q.filter(Subject.department_id == department_id)
-    subjects = subjects_q.all() if subjects_q is not None else []
+    subject_ids = [subject_id] if subject_id else [s.id for s in db.query(Subject).filter(Subject.department_id == department_id).all()]
+    subjects = db.query(Subject).filter(Subject.id.in_(subject_ids)).all() if subject_ids else []
 
     rows = (
         db.query(
@@ -531,20 +512,10 @@ def class_attendance_overview(
             }
         )
     return {
-        "section": section,
         "overall": overall,
         "subjects": subject_agg,
         "students": students_out,
     }
 
 
-def faculty_subjects_by_section(db: Session, section: str) -> list[Subject]:
-    from app.models.subject import SubjectAssignment
 
-    return (
-        db.query(Subject)
-        .join(SubjectAssignment, SubjectAssignment.subject_id == Subject.id)
-        .filter(SubjectAssignment.section == section)
-        .distinct()
-        .all()
-    )

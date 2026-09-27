@@ -44,7 +44,7 @@ def global_search(
 
     is_staff = current_user.role in (Role.ADMIN, Role.HOD, Role.FACULTY)
 
-    # ---- Students (staff only; CR sees own section) ----
+    # ---- Students (staff only; CR sees own department) ----
     if kind in (None, "student") and (is_staff or current_user.role == Role.CR):
         qst = db.query(Student).join(User, User.id == Student.user_id).filter(
             or_(User.name.ilike(f"%{term}%"), User.email.ilike(f"%{term}%"), Student.enrollment_number.ilike(f"%{term}%"))
@@ -52,16 +52,12 @@ def global_search(
         if current_user.role == Role.HOD and current_user.faculty_profile:
             qst = qst.filter(Student.department_id == current_user.faculty_profile.department_id)
         elif current_user.role == Role.FACULTY and current_user.faculty_profile:
-            from app.models.subject import SubjectAssignment
-
-            sections = [s[0] for s in db.query(SubjectAssignment.section)
-                        .filter(SubjectAssignment.faculty_id == current_user.faculty_profile.id).distinct().all()]
-            qst = qst.filter(Student.section.in_(sections) if sections else False)
+            qst = qst.filter(Student.department_id == current_user.faculty_profile.department_id)
         elif current_user.role == Role.CR and current_user.student_profile:
-            qst = qst.filter(Student.section == current_user.student_profile.section)
+            qst = qst.filter(Student.department_id == current_user.student_profile.department_id)
         for s in qst.limit(limit).all():
-            add("student", s.id, s.user.name, f"{s.enrollment_number} - Section {s.section}",
-                {"section": s.section, "department_id": s.department_id})
+            add("student", s.id, s.user.name, f"{s.enrollment_number} - {s.department.name if s.department else ''}",
+                {"department_id": s.department_id})
 
     # ---- Faculty (staff only) ----
     if kind in (None, "faculty") and is_staff:
@@ -94,7 +90,7 @@ def global_search(
         if current_user.role in (Role.STUDENT, Role.CR) and current_user.student_profile:
             from app.models.subject import Subject as SubjectModel
 
-            ids = [s.id for s in db.query(SubjectModel).filter(SubjectModel.semester_id == current_user.student_profile.semester_id).all()]
+            ids = [s.id for s in db.query(SubjectModel).filter(SubjectModel.department_id == current_user.student_profile.department_id).all()]
             qa = qa.filter(Assignment.subject_id.in_(ids) if ids else False)
         for a in qa.limit(limit).all():
             add("assignment", a.id, a.title, f"{a.subject.name if a.subject else ''} - due {a.deadline}", {})

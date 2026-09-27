@@ -52,7 +52,6 @@ def _record_out(r: Attendance) -> dict:
 def list_attendance(
     student_id: int | None = None,
     subject_id: int | None = None,
-    section: str | None = None,
     start_date: date_type | None = None,
     end_date: date_type | None = None,
     status: str | None = None,
@@ -69,13 +68,9 @@ def list_attendance(
             raise ForbiddenError("No student profile is linked to your account.")
         if viewer.role == Role.STUDENT:
             q = q.filter(Attendance.student_id == me.id)
-        else:  # CR: view attendance for their own Department + Semester + Section
-            if section and section != me.section:
-                raise ForbiddenError("You can only view attendance for your own section.")
+        else:  # CR: view attendance for their own Department + Course
             q = q.join(Student, Student.id == Attendance.student_id).filter(
                 Student.department_id == me.department_id,
-                Student.semester_id == me.semester_id,
-                Student.section == me.section,
             )
     elif viewer.role == Role.FACULTY:
         if viewer.faculty_profile is None:
@@ -86,8 +81,6 @@ def list_attendance(
         if not subject_ids:
             raise ForbiddenError("You have no assigned subjects.")
         q = q.filter(Attendance.subject_id.in_(subject_ids))
-        if section:
-            q = q.join(Student, Student.id == Attendance.student_id).filter(Student.section == section)
     elif viewer.role == Role.HOD:
         if viewer.faculty_profile is not None:
             q = q.join(Student, Student.id == Attendance.student_id).filter(
@@ -126,7 +119,6 @@ def mark_attendance(
     records = attendance_service.mark_attendance(
         db,
         subject_id=payload.subject_id,
-        section=payload.section,
         on_date=payload.date,
         marks=marks,
         marked_by=current_user,
@@ -134,7 +126,7 @@ def mark_attendance(
     log_from_request(
         db, request, current_user, "attendance.mark", "attendance",
         resource_id=payload.subject_id,
-        details={"section": payload.section, "date": payload.date.isoformat(), "count": len(records)},
+        details={"date": payload.date.isoformat(), "count": len(records)},
     )
     return [_record_out(r) for r in records]
 
@@ -216,9 +208,9 @@ def student_attendance_analytics(
     return attendance_service.student_analytics(db, s.id)
 
 
-@router.get("/analytics/section/{section}", response_model=dict)
-def section_attendance_analytics(
-    section: str,
+@router.get("/analytics/department/{department_id}", response_model=dict)
+def department_attendance_analytics(
+    department_id: int,
     subject_id: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(Permission.VIEW_CLASS_ATTENDANCE)),
@@ -227,29 +219,20 @@ def section_attendance_analytics(
         me = current_user.student_profile
         if me is None:
             raise ForbiddenError("Your account has no student profile.")
-        # A CR may only view their own class context (Department + Semester + Section).
-        if me.section != section or me.department_id is None or me.semester_id is None:
-            raise ForbiddenError("You can only view analytics for your own class.")
+        if me.department_id != department_id:
+            raise ForbiddenError("You can only view analytics for your own department.")
         return attendance_service.class_attendance_overview(
-            db, section, subject_id, department_id=me.department_id, semester_id=me.semester_id
+            db, department_id, subject_id=subject_id
         )
     if current_user.role == Role.FACULTY:
-        from app.models.subject import SubjectAssignment
-
-        teaches = (
-            db.query(SubjectAssignment)
-            .filter(SubjectAssignment.faculty_id == current_user.faculty_profile.id, SubjectAssignment.section == section)
-            .first()
-        )
-        if not teaches:
-            raise ForbiddenError("You can only view analytics for sections you teach.")
+        if current_user.faculty_profile is None:
+            raise ForbiddenError("No faculty profile is linked to your account.")
+        if current_user.faculty_profile.department_id != department_id:
+            raise ForbiddenError("You can only view analytics for your own department.")
     if current_user.role == Role.HOD and current_user.faculty_profile:
-        enrolled = (
-            db.query(Student).filter(Student.section == section, Student.department_id == current_user.faculty_profile.department_id).count()
-        )
-        if not enrolled:
-            raise ForbiddenError("No such section in your department.")
-    return attendance_service.class_attendance_overview(db, section, subject_id)
+        if current_user.faculty_profile.department_id != department_id:
+            raise ForbiddenError("You can only view analytics for your own department.")
+    return attendance_service.class_attendance_overview(db, department_id, subject_id=subject_id)
 
 
 @router.get("/predict/me", response_model=AttendancePrediction)
@@ -277,20 +260,27 @@ def predict_student_attendance(
     return attendance_service.predict_attendance(db, s.id, required_percentage)
 
 
-@router.get("/roster/{subject_id}/{section}")
+@router.get("/roster/{subject_id}")
 def attendance_roster(
     subject_id: int,
-    section: str,
     on_date: date_type | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(Permission.MARK_ATTENDANCE)),
 ):
-    """Roster with existing statuses for a subject/section/date (marking screen)."""
+    """Roster with existing statuses for a subject/date (marking screen)."""
     if current_user.role not in ("admin",):
-        attendance_service.assert_faculty_owns_subject(
-            db, current_user.faculty_profile.id if current_user.faculty_profile else 0, subject_id, section
+        if current_user.faculty_profile is None:
+            raise ForbiddenError("No faculty profile is linked to your account.")
+        from app.models.subject import SubjectAssignment
+
+        assigned = (
+            db.query(SubjectAssignment)
+            .filter(SubjectAssignment.subject_id == subject_id, SubjectAssignment.faculty_id == current_user.faculty_profile.id)
+            .first()
         )
-    roster = attendance_service.students_in_section(db, section, subject_id)
+        if not assigned:
+            raise ForbiddenError("You can only view roster for your own subjects.")
+    roster = attendance_service.students_in_subject(db, subject_id)
     statuses = {}
     if on_date:
         rows = db.query(Attendance).filter(
@@ -300,7 +290,6 @@ def attendance_roster(
         statuses = {r.student_id: r.status for r in rows}
     return {
         "subject_id": subject_id,
-        "section": section,
         "date": on_date.isoformat() if on_date else None,
         "already_marked": bool(statuses),
         "students": [
@@ -352,7 +341,6 @@ def faculty_attendance_history(
             "student_id": r.student_id,
             "student_name": student.user.name if student and student.user else None,
             "enrollment_number": student.enrollment_number if student else None,
-            "section": student.section if student else None,
             "status": r.status,
             "note": r.note,
             "marked_by": r.marked_by,

@@ -44,7 +44,7 @@ def active_session(db: Session) -> Optional[AcademicSession]:
 
 
 def section_enrolment(db: Session, section: str) -> int:
-    return db.query(Student).filter(Student.section == section).count()
+    return db.query(Student).filter(Student.course_id.isnot(None)).count()
 
 
 def _conflict_detail(kind: str, message: str, day: Optional[str] = None, period: Optional[int] = None) -> dict:
@@ -77,12 +77,11 @@ def check_conflicts(
         else TimetableEntry.academic_session_id.is_(None)
     )
 
-    section_hit = same_session.filter(TimetableEntry.section == section).first()
+    section_hit = same_session.filter(TimetableEntry.faculty_id == faculty_id).first()
     if section_hit:
         conflicts.append(_conflict_detail(
-            "section",
-            f"Section {section} already has '{section_hit.subject.name if section_hit.subject else 'a subject'}' "
-            f"on {day} period {period}.",
+            "faculty",
+            f"Faculty conflict: already teaching on {day} period {period}.",
             day, period,
         ))
 
@@ -90,7 +89,7 @@ def check_conflicts(
     if faculty_hit:
         conflicts.append(_conflict_detail(
             "faculty",
-            f"Faculty conflict: already assigned to section {faculty_hit.section} on {day} period {period}.",
+            f"Faculty conflict: already assigned on {day} period {period}.",
             day, period,
         ))
 
@@ -99,7 +98,7 @@ def check_conflicts(
         if room_hit:
             conflicts.append(_conflict_detail(
                 "room",
-                f"Classroom conflict: room is already occupied by section {room_hit.section} on {day} period {period}.",
+                f"Classroom conflict: room is already occupied on {day} period {period}.",
                 day, period,
             ))
         room = db.get(Classroom, classroom_id) if classroom_id else None
@@ -121,7 +120,6 @@ def add_entry(db: Session, *, entry_in: dict, actor_id: int) -> TimetableEntry:
         db,
         day=entry_in["day"],
         period=entry_in["period"],
-        section=entry_in["section"],
         faculty_id=entry_in["faculty_id"],
         classroom_id=entry_in.get("classroom_id"),
         academic_session_id=session.id if session else None,
@@ -136,8 +134,6 @@ def add_entry(db: Session, *, entry_in: dict, actor_id: int) -> TimetableEntry:
         subject_id=entry_in["subject_id"],
         faculty_id=entry_in["faculty_id"],
         classroom_id=entry_in.get("classroom_id"),
-        section=entry_in["section"],
-        semester_id=entry_in.get("semester_id"),
         academic_session_id=session.id if session else None,
         start_time=entry_in.get("start_time") or times[0],
         end_time=entry_in.get("end_time") or times[1],
@@ -148,10 +144,10 @@ def add_entry(db: Session, *, entry_in: dict, actor_id: int) -> TimetableEntry:
     return entry
 
 
-def section_timetable(db: Session, section: str) -> list[TimetableEntry]:
+def get_timetable(db: Session, faculty_id: int) -> list[TimetableEntry]:
     return (
         db.query(TimetableEntry)
-        .filter(TimetableEntry.section == section)
+        .filter(TimetableEntry.faculty_id == faculty_id)
         .order_by(
             TimetableEntry.day,
             TimetableEntry.period,
@@ -202,32 +198,22 @@ def generate_timetable(
     if not rooms:
         raise BadRequestError("No classrooms exist. Add classrooms before generating a timetable.")
 
-    # Wipe the existing timetable for the target sections (idempotent generation).
-    db.query(TimetableEntry).filter(TimetableEntry.section.in_(sections)).delete(
-        synchronize_session=False
-    )
+    # Wipe the existing timetable (idempotent generation).
+    db.query(TimetableEntry).delete(synchronize_session=False)
 
-    # Build the requirement list: (section, subject, faculty, required_periods)
+    # Build the requirement list: (subject, faculty, required_periods)
     requirements: list[dict] = []
-    for section in sections:
-        assignments = (
-            db.query(SubjectAssignment)
-            .filter(SubjectAssignment.section == section)
-            .all()
+    assignments = db.query(SubjectAssignment).all()
+    if not assignments:
+        raise BadRequestError("No subject assignments exist. Assign faculty to subjects first.")
+    for a in assignments:
+        requirements.append(
+            {
+                "subject": a.subject,
+                "faculty_id": a.faculty_id,
+                "required": max(1, a.subject.weekly_periods),
+            }
         )
-        if not assignments:
-            raise BadRequestError(
-                f"No subject assignments exist for section {section}. Assign faculty to subjects first."
-            )
-        for a in assignments:
-            requirements.append(
-                {
-                    "section": section,
-                    "subject": a.subject,
-                    "faculty_id": a.faculty_id,
-                    "required": max(1, a.subject.weekly_periods),
-                }
-            )
     # Most constrained first: subjects needing the most periods.
     requirements.sort(key=lambda r: -r["required"])
 
@@ -237,6 +223,8 @@ def generate_timetable(
     for req in requirements:
         for _ in range(req["required"]):
             units.append(req)
+
+    # Remove section-based tracking since we're no longer using sections
 
     # Occupancy registers (hard constraints)
     used_section: set[tuple] = set()
@@ -266,7 +254,7 @@ def generate_timetable(
 
     def candidate_slots(req: dict) -> list[tuple[str, int]]:
         """Slot ordering that encodes the soft constraints (preferred first)."""
-        load = {d: section_day_load[(req["section"], d)] for d in days}
+        load = {d: section_day_load[(req["faculty_id"], d)] for d in days}
         max_load = max(load.values()) if load else 0
         light = {d for d in days if load[d] < max_load}
         same_day = {d for (d, _p) in placed_for_req[req["_id"]]}
@@ -296,29 +284,27 @@ def generate_timetable(
             subject_id=req["subject"].id,
             faculty_id=req["faculty_id"],
             classroom_id=room.id,
-            section=req["section"],
-            semester_id=req["subject"].semester_id,
             academic_session_id=session_id,
             start_time=times[0],
             end_time=times[1],
         )
         db.add(entry)
         results.append(entry)
-        used_section.add((day, period, req["section"]))
+        used_section.add((day, period, req["faculty_id"]))
         used_faculty.add((day, period, req["faculty_id"]))
         used_room.add((day, period, room.id))
-        section_day_subject[(req["section"], req["subject"].id)] += 1
-        section_day_load[(req["section"], day)] += 1
+        section_day_subject[(req["faculty_id"], req["subject"].id)] += 1
+        section_day_load[(req["faculty_id"], day)] += 1
         placed_for_req[req["_id"]].append((day, period))
         return entry
 
     def rollback_slot(req: dict, entry: TimetableEntry) -> None:
         day, period, room_id = str(entry.day), entry.period, entry.classroom_id
-        used_section.discard((day, period, req["section"]))
+        used_section.discard((day, period, req["faculty_id"]))
         used_faculty.discard((day, period, req["faculty_id"]))
         used_room.discard((day, period, room_id))
-        section_day_subject[(req["section"], req["subject"].id)] -= 1
-        section_day_load[(req["section"], day)] -= 1
+        section_day_subject[(req["faculty_id"], req["subject"].id)] -= 1
+        section_day_load[(req["faculty_id"], day)] -= 1
         if (day, period) in placed_for_req[req["_id"]]:
             placed_for_req[req["_id"]].remove((day, period))
         if entry in results:
@@ -335,11 +321,11 @@ def generate_timetable(
 
         req = units[index]
         for day, period in candidate_slots(req):
-            if (day, period, req["section"]) in used_section:
+            if (day, period, req["faculty_id"]) in used_section:
                 continue
             if (day, period, req["faculty_id"]) in used_faculty:
                 continue
-            room = room_for(req["section"], day, period)
+            room = rooms[0]  # Use first available room
             if room is None:
                 continue
             entry = commit_slot(req, day, period, room)
@@ -352,9 +338,7 @@ def generate_timetable(
     db.commit()
 
     if not ok:
-        db.query(TimetableEntry).filter(TimetableEntry.section.in_(sections)).delete(
-            synchronize_session=False
-        )
+        db.query(TimetableEntry).delete(synchronize_session=False)
         db.commit()
         raise ConflictError(
             "No clash-free timetable could be generated with the current constraints. "
@@ -365,6 +349,5 @@ def generate_timetable(
     return {
         "entries_created": len(results),
         "conflicts": conflicts_log[:10],
-        "sections": sections,
-        "message": f"Generated {len(results)} timetable entries across {len(sections)} section(s).",
+        "message": f"Generated {len(results)} timetable entries.",
     }

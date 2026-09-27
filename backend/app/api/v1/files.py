@@ -83,7 +83,7 @@ def _can_access_file(
             return False
 
     elif file_type == "assignment":
-        # Assignment attachments: faculty who created it, admin, or students in the class
+        # Assignment attachments: faculty who created it, admin, or students in the department
         if db is None or resource_id is None:
             return False
         assignment = db.query(Assignment).filter(Assignment.id == resource_id).first()
@@ -91,11 +91,10 @@ def _can_access_file(
             return False
         if assignment.faculty_id == current_user.id:
             return True
-        # Students in the assignment's section or semester can access
-        if current_user.student_profile:
-            if assignment.subject:
-                if assignment.subject.semester_id == current_user.student_profile.semester_id:
-                    return True
+        # Students in the assignment's department can access
+        if current_user.student_profile and assignment.subject:
+            if assignment.subject.department_id == current_user.student_profile.department_id:
+                return True
         return False
 
     elif file_type == "submission":

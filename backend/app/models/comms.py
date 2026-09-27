@@ -22,13 +22,11 @@ class AnnouncementTarget(StrEnum):
     EVERYONE = "everyone"
     DEPARTMENT = "department"
     COURSE = "course"
-    SEMESTER = "semester"
-    SECTION = "section"
     FACULTY = "faculty"
 
     @classmethod
     def scoped(cls) -> set["AnnouncementTarget"]:
-        return {cls.DEPARTMENT, cls.COURSE, cls.SEMESTER, cls.SECTION}
+        return {cls.DEPARTMENT, cls.COURSE}
 
 
 class Priority(StrEnum):
@@ -49,8 +47,6 @@ class Announcement(Base, TimestampMixin):
     target_type: Mapped[str] = mapped_column(Enum(AnnouncementTarget), default=AnnouncementTarget.EVERYONE, nullable=False, index=True)
     department_id: Mapped[Optional[int]] = mapped_column(ForeignKey("departments.id", ondelete="CASCADE"), nullable=True, index=True)
     course_id: Mapped[Optional[int]] = mapped_column(ForeignKey("courses.id", ondelete="CASCADE"), nullable=True)
-    semester_id: Mapped[Optional[int]] = mapped_column(ForeignKey("semesters.id", ondelete="CASCADE"), nullable=True)
-    section: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, index=True)
 
     priority: Mapped[str] = mapped_column(Enum(Priority), default=Priority.NORMAL, nullable=False)
     published_by: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=False, index=True)
@@ -107,7 +103,6 @@ class Feedback(Base, TimestampMixin):
     target_type: Mapped[str] = mapped_column(String(30), default="subject", nullable=False, index=True)
     subject_id: Mapped[Optional[int]] = mapped_column(ForeignKey("subjects.id", ondelete="SET NULL"), nullable=True)
     department_id: Mapped[Optional[int]] = mapped_column(ForeignKey("departments.id", ondelete="SET NULL"), nullable=True)
-    section: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
     rating: Mapped[int] = mapped_column(Integer, nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="open", nullable=False)
@@ -130,8 +125,6 @@ class CRRequest(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     submitted_by: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=False, index=True)
-    semester_id: Mapped[Optional[int]] = mapped_column(ForeignKey("semesters.id", ondelete="SET NULL"), nullable=True)
-    section: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, index=True)
     department_id: Mapped[Optional[int]] = mapped_column(ForeignKey("departments.id", ondelete="SET NULL"), nullable=True)
     request_type: Mapped[str] = mapped_column(String(50), default="other", nullable=False)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -140,7 +133,6 @@ class CRRequest(Base, TimestampMixin):
     resolution_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     author: Mapped[Optional["User"]] = relationship()
-    semester: Mapped[Optional["Semester"]] = relationship()
 
 
 class AuditLog(Base):

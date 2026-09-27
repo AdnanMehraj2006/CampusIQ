@@ -134,29 +134,14 @@ class SubjectOut(ORMModel):
 class SubjectAssignmentCreate(BaseModel):
     subject_id: int
     faculty_id: int
-    section: str = Field("A", max_length=10)
 
 
 class SubjectAssignmentOut(ORMModel):
     id: int
     subject_id: int
     faculty_id: int
-    section: str
     subject_name: Optional[str] = None
     subject_code: Optional[str] = None
-    faculty_name: Optional[str] = None
-
-
-# ---- Class teachers ----
-class ClassTeacherCreate(BaseModel):
-    faculty_id: int
-    section: str = Field("A", max_length=10)
-
-
-class ClassTeacherOut(ORMModel):
-    id: int
-    faculty_id: int
-    section: str
     faculty_name: Optional[str] = None
 
 

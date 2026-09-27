@@ -11,7 +11,6 @@ from app.core.exceptions import ForbiddenError
 from app.models.academic import Course, Department
 from app.models.comms import Announcement, AnnouncementTarget, NotificationType, Priority
 from app.models.people import Faculty, Student
-from app.models.subject import SubjectAssignment
 from app.models.user import User
 from app.services.notification_service import notify_many
 
@@ -34,25 +33,10 @@ def validate_publish_scope(db: Session, user: User, announcement_in: dict) -> No
         return
 
     if user.role == "faculty":
-        if target not in (AnnouncementTarget.SECTION, AnnouncementTarget.SEMESTER, AnnouncementTarget.FACULTY):
+        if target not in (AnnouncementTarget.FACULTY,):
             raise ForbiddenError(
-                "Faculty may only publish announcements to their own sections, semesters or faculty."
+                "Faculty may only publish announcements to their own faculty."
             )
-        if target == AnnouncementTarget.SECTION:
-            section = announcement_in.get("section")
-            if not section:
-                raise ForbiddenError("A section is required for section-targeted announcements.")
-            if not user.faculty_profile:
-                raise ForbiddenError("No faculty profile is linked to your account.")
-            assigned = (
-                db.query(SubjectAssignment.section)
-                .filter(SubjectAssignment.faculty_id == user.faculty_profile.id)
-                .distinct()
-                .all()
-            )
-            valid_sections = {a[0] for a in assigned}
-            if section not in valid_sections:
-                raise ForbiddenError("You can only publish to sections you teach.")
         return
 
     raise ForbiddenError("Your role cannot publish announcements.")
@@ -78,10 +62,6 @@ def announcement_recipients(db: Session, announcement: Announcement) -> list[int
         sq = sq.filter(Student.department_id == announcement.department_id)
     if announcement.course_id:
         sq = sq.filter(Student.course_id == announcement.course_id)
-    if announcement.semester_id:
-        sq = sq.filter(Student.semester_id == announcement.semester_id)
-    if announcement.section:
-        sq = sq.filter(Student.section == announcement.section)
     return [s.user_id for s in sq.all()]
 
 
@@ -116,20 +96,6 @@ def visible_announcements_query(db: Session, user: User):
                     Announcement.course_id == student.course_id,
                 )
             )
-        if student.semester_id:
-            clauses.append(
-                and_(
-                    Announcement.target_type == AnnouncementTarget.SEMESTER,
-                    Announcement.semester_id == student.semester_id,
-                )
-            )
-        clauses.append(
-            and_(
-                Announcement.target_type == AnnouncementTarget.SECTION,
-                Announcement.section == student.section,
-                or_(Announcement.department_id.is_(None), Announcement.department_id == student.department_id),
-            )
-        )
         return q.filter(or_(*clauses))
 
     if faculty is not None:
@@ -142,21 +108,6 @@ def visible_announcements_query(db: Session, user: User):
             and_(Announcement.target_type == AnnouncementTarget.FACULTY,
                  or_(Announcement.department_id.is_(None), Announcement.department_id == faculty.department_id)),
         ]
-        sections = (
-            db.query(SubjectAssignment.section)
-            .filter(SubjectAssignment.faculty_id == faculty.id)
-            .distinct()
-            .all()
-        )
-        section_list = [s[0] for s in sections]
-        if section_list:
-            clauses.append(
-                and_(
-                    Announcement.target_type == AnnouncementTarget.SECTION,
-                    Announcement.section.in_(section_list),
-                    or_(Announcement.department_id.is_(None), Announcement.department_id == faculty.department_id),
-                )
-            )
         return q.filter(or_(*clauses))
 
     return q.filter(Announcement.target_type == AnnouncementTarget.EVERYONE)
@@ -171,8 +122,6 @@ def publish(db: Session, *, announcement_in: dict, author: User, commit: bool = 
         target_type=AnnouncementTarget(announcement_in.get("target_type", AnnouncementTarget.EVERYONE)),
         department_id=announcement_in.get("department_id"),
         course_id=announcement_in.get("course_id"),
-        semester_id=announcement_in.get("semester_id"),
-        section=announcement_in.get("section"),
         priority=Priority(announcement_in.get("priority", Priority.NORMAL)),
         published_by=author.id,
         expiry_at=announcement_in.get("expiry_at"),

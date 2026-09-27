@@ -82,16 +82,8 @@ export interface SubjectAssignment {
   id: number
   subject_id: number
   faculty_id: number
-  section: string
   subject_name?: string | null
   subject_code?: string | null
-  faculty_name?: string | null
-}
-
-export interface ClassTeacher {
-  id: number
-  faculty_id: number
-  section: string
   faculty_name?: string | null
 }
 
@@ -149,7 +141,6 @@ export interface CRRequest {
   description: string
   status: string
   resolution_note?: string | null
-  section?: string | null
   author_name?: string | null
   created_at: string
 }
@@ -160,7 +151,6 @@ export interface Feedback {
   target_type: string
   subject_id?: number | null
   department_id?: number | null
-  section?: string | null
   rating: number
   message: string
   status: string
@@ -193,7 +183,6 @@ export interface TimetableEntry {
   subject_id: number
   faculty_id: number
   classroom_id: number
-  section: string
   subject_name?: string
   subject_code?: string
   faculty_name?: string
@@ -212,7 +201,6 @@ export interface AttendanceRecord {
   enrollment_number?: string
   subject_name?: string
   subject_code?: string
-  section?: string
 }
 
 export interface AttendanceAnalytics {
@@ -261,7 +249,6 @@ export interface Assignment {
   subject_code?: string
   faculty_id: number
   faculty_name?: string
-  section?: string
   deadline: string
   max_marks: number
   attachment_path?: string
@@ -318,7 +305,6 @@ export interface Project {
   description?: string
   project_code: string
   department_id: number
-  semester_id?: number
   supervisor_id: number
   status: string
   deadline?: string
@@ -356,8 +342,6 @@ export interface Announcement {
   target_type: string
   department_id?: number
   course_id?: number
-  semester_id?: number
-  section?: string
   priority: string
   published_by: number
   attachment_path?: string
@@ -407,20 +391,7 @@ export interface SearchResult {
   meta: Record<string, unknown>
 }
 
-export interface SectionAttendanceStudent {
-  id: number
-  name: string
-  percentage: number
-  zone: string
-}
 
-export interface SectionAttendance {
-  section?: string
-  overall?: number
-  conducted?: number
-  attended?: number
-  students?: SectionAttendanceStudent[]
-}
 
 export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused'
 
@@ -433,7 +404,6 @@ export interface AttendanceRosterStudent {
 
 export interface AttendanceRoster {
   subject_id: number
-  section: string
   date: string | null
   already_marked: boolean
   students: AttendanceRosterStudent[]
@@ -441,7 +411,6 @@ export interface AttendanceRoster {
 
 export interface AnnouncementTargets {
   targets: string[]
-  sections: string[]
 }
 
 export interface AISuggestion {
@@ -514,8 +483,6 @@ export interface DashboardResponse {
     priority: string
     published_at: string
   }>
-  section?: string
-  semester_number?: number
   department_name?: string
   subjects?: Array<{
     id: number
@@ -523,9 +490,7 @@ export interface DashboardResponse {
     code?: string
     credits?: number
   }>
-  sections?: string[]
   class_overview?: {
-    section?: string
     overall?: number
     conducted?: number
     attended?: number

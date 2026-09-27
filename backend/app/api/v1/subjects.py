@@ -31,18 +31,15 @@ def _subject_out(s: Subject) -> dict:
         "name": s.name,
         "code": s.code,
         "credits": s.credits,
-        "semester_id": s.semester_id,
         "department_id": s.department_id,
         "weekly_periods": s.weekly_periods,
         "department_name": s.department.name if s.department else None,
-        "semester_number": s.semester.semester_number if s.semester else None,
     }
 
 
 @router.get("", response_model=dict)
 def list_subjects(
     department_id: int | None = None,
-    semester_id: int | None = None,
     db: Session = Depends(get_db),
     page_params: dict = Depends(pagination_params),
     current_user: User = Depends(require_permission(Permission.VIEW_ANNOUNCEMENTS)),
@@ -52,8 +49,6 @@ def list_subjects(
         q = q.filter(Subject.department_id == current_user.faculty_profile.department_id)
     if department_id:
         q = q.filter(Subject.department_id == department_id)
-    if semester_id:
-        q = q.filter(Subject.semester_id == semester_id)
     if page_params["q"]:
         q = q.filter(Subject.name.ilike(f"%{page_params['q']}%") | Subject.code.ilike(f"%{page_params['q']}%"))
     total = q.count()
@@ -139,7 +134,6 @@ def delete_subject(
 @router.get("/assignments", response_model=dict)
 def list_assignments(
     faculty_id: int | None = None,
-    section: str | None = None,
     subject_id: int | None = None,
     db: Session = Depends(get_db),
     page_params: dict = Depends(pagination_params),
@@ -152,8 +146,6 @@ def list_assignments(
         q = q.filter(SubjectAssignment.faculty.has(department_id=current_user.faculty_profile.department_id))
     if faculty_id:
         q = q.filter(SubjectAssignment.faculty_id == faculty_id)
-    if section:
-        q = q.filter(SubjectAssignment.section == section)
     if subject_id:
         q = q.filter(SubjectAssignment.subject_id == subject_id)
     total = q.count()
@@ -163,8 +155,6 @@ def list_assignments(
             "id": a.id,
             "subject_id": a.subject_id,
             "faculty_id": a.faculty_id,
-            "section": a.section,
-            "semester_id": a.semester_id,
             "subject_name": a.subject.name if a.subject else None,
             "subject_code": a.subject.code if a.subject else None,
             "faculty_name": a.faculty.user.name if a.faculty and a.faculty.user else None,
@@ -199,11 +189,10 @@ def create_assignment(
         .filter(
             SubjectAssignment.subject_id == payload.subject_id,
             SubjectAssignment.faculty_id == payload.faculty_id,
-            SubjectAssignment.section == payload.section,
         )
         .first()
     ):
-        raise ConflictError("This faculty member is already assigned to this subject and section.")
+        raise ConflictError("This faculty member is already assigned to this subject.")
 
     assignment = SubjectAssignment(**payload.model_dump())
     db.add(assignment)
@@ -211,7 +200,7 @@ def create_assignment(
     db.refresh(assignment)
     log_from_request(
         db, request, current_user, "subject.assign", "subject_assignment", resource_id=assignment.id,
-        details={"subject_id": payload.subject_id, "faculty_id": payload.faculty_id, "section": payload.section},
+        details={"subject_id": payload.subject_id, "faculty_id": payload.faculty_id},
     )
     return assignment
 

@@ -1,4 +1,4 @@
-"""Class teacher assignments and classroom management."""
+"""Classroom management."""
 
 from __future__ import annotations
 
@@ -6,84 +6,91 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.deps import pagination_params, require_permission
-from app.core.exceptions import BadRequestError, NotFoundError
+from app.core.exceptions import NotFoundError
 from app.core.permissions import Permission
 from app.database import get_db
-from app.models.academic import ClassTeacher
-from app.models.people import Faculty
+from app.models.classroom import Classroom
 from app.models.user import User
-from app.schemas import ClassTeacherCreate, ClassTeacherOut
+from app.schemas import ClassroomCreate, ClassroomOut, ClassroomUpdate
 from app.schemas.common import paginated
 
 router = APIRouter(tags=["Academic"])
 
 
-def _class_teacher_out(db: Session, ct: ClassTeacher) -> dict:
-    return {
-        "id": ct.id,
-        "faculty_id": ct.faculty_id,
-        "section": ct.section,
-        "semester_id": ct.semester_id,
-        "faculty_name": ct.faculty.user.name if ct.faculty and ct.faculty.user else None,
-    }
-
-
-@router.get("/class-teachers", response_model=dict)
-def list_class_teachers(
-    section: str | None = None,
-    semester_id: int | None = None,
+@router.get("/classrooms", response_model=dict)
+def list_classrooms(
     db: Session = Depends(get_db),
     page_params: dict = Depends(pagination_params),
     current_user: User = Depends(require_permission(Permission.VIEW_FACULTY)),
 ):
-    q = db.query(ClassTeacher)
-    if section:
-        q = q.filter(ClassTeacher.section == section)
-    if semester_id:
-        q = q.filter(ClassTeacher.semester_id == semester_id)
-    total = q.count()
-    rows = q.order_by(ClassTeacher.section, ClassTeacher.semester_id).offset(page_params["offset"]).limit(page_params["page_size"]).all()
-    return paginated([_class_teacher_out(db, ct) for ct in rows], page_params["page"], page_params["page_size"], total)
+    total = db.query(Classroom).count()
+    rows = (
+        db.query(Classroom)
+        .offset(page_params["offset"])
+        .limit(page_params["page_size"])
+        .all()
+    )
+    return paginated(
+        [{"id": r.id, "room_number": r.room_number, "building": r.building, "capacity": r.capacity, "type": r.room_type} for r in rows],
+        page_params["page"],
+        page_params["page_size"],
+        total,
+    )
 
 
-@router.post("/class-teachers", response_model=ClassTeacherOut, status_code=201)
-def create_class_teacher(
-    payload: ClassTeacherCreate,
+@router.post("/classrooms", response_model=ClassroomOut, status_code=201)
+def create_classroom(
+    payload: ClassroomCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(Permission.MANAGE_FACULTY)),
 ):
-    faculty = db.get(Faculty, payload.faculty_id)
-    if not faculty:
-        raise NotFoundError("Faculty member not found.")
-
-    existing = (
-        db.query(ClassTeacher)
-        .filter(ClassTeacher.faculty_id == payload.faculty_id, ClassTeacher.section == payload.section, ClassTeacher.semester_id == payload.semester_id)
-        .first()
-    )
+    existing = db.query(Classroom).filter(Classroom.room_number == payload.room_number).first()
     if existing:
-        raise BadRequestError("A class teacher already exists for this faculty/section/semester combination.")
-
-    ct = ClassTeacher(
-        faculty_id=payload.faculty_id,
-        section=payload.section,
-        semester_id=payload.semester_id,
+        raise NotFoundError("Classroom already exists.")
+    room = Classroom(
+        room_number=payload.room_number,
+        building=payload.building,
+        capacity=payload.capacity,
+        room_type=payload.room_type,
     )
-    db.add(ct)
+    db.add(room)
     db.commit()
-    db.refresh(ct)
-    return _class_teacher_out(db, ct)
+    db.refresh(room)
+    return {"id": room.id, "room_number": room.room_number, "building": room.building, "capacity": room.capacity, "type": room.room_type}
 
 
-@router.delete("/class-teachers/{teacher_id}")
-def delete_class_teacher(
-    teacher_id: int,
+@router.put("/classrooms/{room_id}", response_model=ClassroomOut)
+def update_classroom(
+    room_id: int,
+    payload: ClassroomUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(Permission.MANAGE_FACULTY)),
 ):
-    ct = db.get(ClassTeacher, teacher_id)
-    if not ct:
-        raise NotFoundError("Class teacher assignment not found.")
-    db.delete(ct)
+    room = db.get(Classroom, room_id)
+    if not room:
+        raise NotFoundError("Classroom not found.")
+    if payload.room_number is not None:
+        room.room_number = payload.room_number
+    if payload.building is not None:
+        room.building = payload.building
+    if payload.capacity is not None:
+        room.capacity = payload.capacity
+    if payload.room_type is not None:
+        room.room_type = payload.room_type
     db.commit()
-    return {"success": True, "message": "Class teacher assignment removed."}
+    db.refresh(room)
+    return {"id": room.id, "room_number": room.room_number, "building": room.building, "capacity": room.capacity, "type": room.room_type}
+
+
+@router.delete("/classrooms/{room_id}")
+def delete_classroom(
+    room_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.MANAGE_FACULTY)),
+):
+    room = db.get(Classroom, room_id)
+    if not room:
+        raise NotFoundError("Classroom not found.")
+    db.delete(room)
+    db.commit()
+    return {"success": True, "message": "Classroom deleted."}

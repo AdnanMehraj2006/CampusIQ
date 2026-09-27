@@ -13,7 +13,7 @@ from app.database import Base
 from app.models.base import TimestampMixin
 
 if TYPE_CHECKING:
-    from app.models.academic import Department, Semester
+    from app.models.academic import Department
     from app.models.people import Faculty, Student
 
 
@@ -43,7 +43,6 @@ class Project(Base, TimestampMixin):
     project_code: Mapped[Optional[str]] = mapped_column(String(30), unique=True, nullable=True)
 
     department_id: Mapped[Optional[int]] = mapped_column(ForeignKey("departments.id", ondelete="SET NULL"), nullable=True, index=True)
-    semester_id: Mapped[Optional[int]] = mapped_column(ForeignKey("semesters.id", ondelete="SET NULL"), nullable=True)
     supervisor_id: Mapped[int] = mapped_column(ForeignKey("faculty.id", ondelete="CASCADE"), nullable=False, index=True)
 
     status: Mapped[str] = mapped_column(Enum(ProjectStatus), default=ProjectStatus.PROPOSED, nullable=False, index=True)
@@ -51,7 +50,6 @@ class Project(Base, TimestampMixin):
     max_group_size: Mapped[int] = mapped_column(default=4, nullable=False)
 
     department: Mapped[Optional["Department"]] = relationship()
-    semester: Mapped[Optional["Semester"]] = relationship()
     supervisor: Mapped["Faculty"] = relationship()
     groups: Mapped[List["ProjectGroup"]] = relationship(back_populates="project", cascade="all, delete-orphan")
     milestones: Mapped[List["ProjectMilestone"]] = relationship(back_populates="project", cascade="all, delete-orphan")

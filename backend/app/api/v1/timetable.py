@@ -35,8 +35,6 @@ def _entry_out(e: TimetableEntry) -> dict:
         "subject_id": e.subject_id,
         "faculty_id": e.faculty_id,
         "classroom_id": e.classroom_id,
-        "section": e.section,
-        "semester_id": e.semester_id,
         "subject_name": e.subject.name if e.subject else None,
         "subject_code": e.subject.code if e.subject else None,
         "faculty_name": e.faculty.user.name if e.faculty and e.faculty.user else None,
@@ -46,7 +44,6 @@ def _entry_out(e: TimetableEntry) -> dict:
 
 @router.get("", response_model=dict)
 def list_timetable(
-    section: str | None = None,
     faculty_id: int | None = None,
     day: str | None = None,
     db: Session = Depends(get_db),
@@ -54,23 +51,18 @@ def list_timetable(
     current_user: User = Depends(require_permission(Permission.VIEW_ANNOUNCEMENTS)),
 ):
     q = db.query(TimetableEntry)
-    if current_user.role == Role.FACULTY and current_user.faculty_profile and not section and not faculty_id:
+    if current_user.role == Role.FACULTY and current_user.faculty_profile and not faculty_id:
         q = q.filter(TimetableEntry.faculty_id == current_user.faculty_profile.id)
-    if current_user.role in (Role.STUDENT, Role.CR) and current_user.student_profile and not section:
-        q = q.filter(TimetableEntry.section == current_user.student_profile.section)
-    if current_user.role == Role.HOD and current_user.faculty_profile and not section and not faculty_id:
+    if current_user.role in (Role.STUDENT, Role.CR) and current_user.student_profile:
+        q = q.filter(TimetableEntry.faculty_id.in_(
+            db.query(SubjectAssignment.faculty_id).join(SubjectAssignment.subject).filter(
+                Subject.subject.department_id == current_user.student_profile.department_id
+            )
+        ))
+    if current_user.role == Role.HOD and current_user.faculty_profile and not faculty_id:
         from app.models.people import Faculty as FacultyModel
-        from app.models.subject import SubjectAssignment
 
-        dept_sections = (
-            db.query(SubjectAssignment.section)
-            .join(FacultyModel, FacultyModel.id == SubjectAssignment.faculty_id)
-            .filter(FacultyModel.department_id == current_user.faculty_profile.department_id)
-            .distinct()
-        )
-        q = q.filter(TimetableEntry.section.in_([s[0] for s in dept_sections]))
-    if section:
-        q = q.filter(TimetableEntry.section == section)
+        q = q.filter(TimetableEntry.faculty.has(department_id=current_user.faculty_profile.department_id))
     if faculty_id:
         q = q.filter(TimetableEntry.faculty_id == faculty_id)
     if day:
@@ -80,26 +72,16 @@ def list_timetable(
     return paginated([_entry_out(e) for e in rows], page_params["page"], page_params["page_size"], total)
 
 
-@router.get("/section/{section}", response_model=list[TimetableEntryOut])
-def section_timetable(
-    section: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission(Permission.VIEW_ANNOUNCEMENTS)),
-):
-    if current_user.role == Role.CR and current_user.student_profile and current_user.student_profile.section != section:
-        raise ForbiddenError("You can only view your own section's timetable.")
-    if current_user.role == Role.STUDENT and current_user.student_profile and current_user.student_profile.section != section:
-        raise ForbiddenError("You can only view your own section's timetable.")
-    return [_entry_out(e) for e in timetable_service.section_timetable(db, section)]
-
-
 @router.get("/my", response_model=list[TimetableEntryOut])
 def my_timetable(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(Permission.VIEW_ANNOUNCEMENTS)),
 ):
     if current_user.student_profile:
-        return [_entry_out(e) for e in timetable_service.section_timetable(db, current_user.student_profile.section)]
+        q = db.query(TimetableEntry).join(SubjectAssignment, SubjectAssignment.faculty_id == TimetableEntry.faculty_id).join(SubjectAssignment.subject).filter(
+            Subject.subject.department_id == current_user.student_profile.department_id
+        )
+        return [_entry_out(e) for e in q.all()]
     if current_user.faculty_profile:
         return [_entry_out(e) for e in timetable_service.faculty_timetable(db, current_user.faculty_profile.id)]
     raise ForbiddenError("No student or faculty profile is linked to your account.")
@@ -115,7 +97,7 @@ def create_entry(
     entry = timetable_service.add_entry(db, entry_in=payload.model_dump(), actor_id=current_user.id)
     log_from_request(
         db, request, current_user, "timetable.create", "timetable", resource_id=entry.id,
-        details={"section": payload.section, "day": str(payload.day), "period": payload.period},
+        details={"day": str(payload.day), "period": payload.period},
     )
     return _entry_out(entry)
 
@@ -139,7 +121,6 @@ def update_entry(
         db,
         day=str(entry.day),
         period=entry.period,
-        section=entry.section,
         faculty_id=entry.faculty_id,
         classroom_id=entry.classroom_id,
         academic_session_id=entry.academic_session_id,
@@ -182,7 +163,6 @@ def check_conflict(
         db,
         day=payload["day"],
         period=int(payload["period"]),
-        section=payload["section"],
         faculty_id=int(payload["faculty_id"]),
         classroom_id=payload.get("classroom_id"),
     )

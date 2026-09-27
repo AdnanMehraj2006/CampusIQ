@@ -44,11 +44,9 @@ def _scope_students(db: Session, current_user: User) -> list[Student]:
     if current_user.role == Role.HOD and current_user.faculty_profile:
         q = q.filter(Student.department_id == current_user.faculty_profile.department_id)
     if current_user.role == Role.FACULTY and current_user.faculty_profile:
-        sections = [s[0] for s in db.query(SubjectAssignment.section)
-                    .filter(SubjectAssignment.faculty_id == current_user.faculty_profile.id).distinct().all()]
-        q = q.filter(Student.section.in_(sections) if sections else False)
+        q = q.filter(Student.department_id == current_user.faculty_profile.department_id)
     if current_user.role == Role.CR and current_user.student_profile:
-        q = q.filter(Student.section == current_user.student_profile.section)
+        q = q.filter(Student.department_id == current_user.student_profile.department_id)
     if current_user.role == Role.STUDENT and current_user.student_profile:
         q = q.filter(Student.id == current_user.student_profile.id)
     return q.order_by(User.name).all()
@@ -62,14 +60,11 @@ def _check_scope(current_user: User) -> None:
 @router.get("/attendance")
 def attendance_report(
     format: str = Query("csv", pattern="^(csv|pdf)$"),
-    section: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(Permission.GENERATE_REPORTS)),
 ):
     _check_scope(current_user)
     students = _scope_students(db, current_user)
-    if section:
-        students = [s for s in students if s.section == section]
     if not students:
         raise NotFoundError("No students match the report scope.")
 
@@ -80,7 +75,6 @@ def attendance_report(
             {
                 "name": s.user.name,
                 "enrollment": s.enrollment_number,
-                "section": s.section,
                 "department": s.department.name if s.department else "",
                 "attended": a["classes_attended"],
                 "conducted": a["classes_conducted"],
@@ -99,8 +93,8 @@ def attendance_report(
         [
             {
                 "heading": "Student Attendance",
-                "columns": ["Name", "Enrollment", "Section", "Attended", "Conducted", "%", "Zone"],
-                "rows": [[r["name"], r["enrollment"], r["section"], r["attended"], r["conducted"], r["percentage"], r["zone"]] for r in rows],
+                "columns": ["Name", "Enrollment", "Department", "Attended", "Conducted", "%", "Zone"],
+                "rows": [[r["name"], r["enrollment"], r["department"], r["attended"], r["conducted"], r["percentage"], r["zone"]] for r in rows],
             }
         ],
     )
@@ -126,7 +120,6 @@ def performance_report(
             {
                 "name": s.user.name,
                 "enrollment": s.enrollment_number,
-                "section": s.section,
                 "assessments": len(marks),
                 "total": total,
                 "max": mx,
@@ -144,8 +137,8 @@ def performance_report(
         [
             {
                 "heading": "Performance Summary",
-                "columns": ["Name", "Enrollment", "Section", "Assessments", "Total", "Max", "%"],
-                "rows": [[r["name"], r["enrollment"], r["section"], r["assessments"], r["total"], r["max"], r["percentage"]] for r in rows],
+                "columns": ["Name", "Enrollment", "Assessments", "Total", "Max", "%"],
+                "rows": [[r["name"], r["enrollment"], r["assessments"], r["total"], r["max"], r["percentage"]] for r in rows],
             }
         ],
     )
@@ -256,13 +249,7 @@ def assignment_submission_report(
         if a.faculty.department_id != current_user.faculty_profile.department_id:
             raise ForbiddenError("This assignment belongs to another department.")
 
-    roster = attendance_service.students_in_section(db, a.section or "", a.subject_id) if a.section else []
-    if not roster:
-        roster = (
-            db.query(Student).join(User, User.id == Student.user_id)
-            .filter(Student.semester_id == a.subject.semester_id if a.subject and a.subject.semester_id else None)
-            .all()
-        )
+    roster = attendance_service.students_in_subject(db, a.subject_id)
     subs = {s.student_id: s for s in db.query(AssignmentSubmission).filter(AssignmentSubmission.assignment_id == a.id).all()}
 
     rows = []
@@ -272,7 +259,6 @@ def assignment_submission_report(
             {
                 "name": s.user.name,
                 "enrollment": s.enrollment_number,
-                "section": s.section,
                 "submitted": "yes" if sub else "no",
                 "late": "yes" if (sub and sub.is_late) else "no",
                 "grade": sub.grade if sub and sub.grade is not None else "",
@@ -287,8 +273,8 @@ def assignment_submission_report(
         [
             {
                 "heading": f"{a.subject.name if a.subject else ''} - {a.title}",
-                "columns": ["Name", "Enrollment", "Section", "Submitted", "Late", "Grade"],
-                "rows": [[r["name"], r["enrollment"], r["section"], r["submitted"], r["late"], r["grade"]] for r in rows],
+                "columns": ["Name", "Enrollment", "Submitted", "Late", "Grade"],
+                "rows": [[r["name"], r["enrollment"], r["submitted"], r["late"], r["grade"]] for r in rows],
             }
         ],
     )
@@ -360,7 +346,6 @@ def _get_faculty_feedback(db: Session, faculty_id: int, department_id: int | Non
             "rating": f.rating,
             "message": f.message,
             "subject_id": f.subject_id,
-            "section": f.section,
             "created_at": f.created_at.isoformat() if f.created_at else None,
         })
     return result

@@ -91,14 +91,15 @@ def tool_get_my_attendance(ctx: ToolContext, **kw) -> dict:
 
 def tool_get_my_timetable(ctx: ToolContext, **kw) -> dict:
     st = _require_student(ctx)
+    # Get timetable entries for student's course subjects
+    subject_ids = [s.id for s in ctx.db.query(Subject).filter(Subject.department_id == st.department_id).all()]
     rows = (
         ctx.db.query(TimetableEntry)
-        .filter(TimetableEntry.section == st.section)
+        .filter(TimetableEntry.subject_id.in_(subject_ids))
         .order_by(TimetableEntry.day, TimetableEntry.period)
         .all()
     )
     return {
-        "section": st.section,
         "entries": [
             {
                 "day": str(r.day),
@@ -117,7 +118,7 @@ def tool_get_my_assignments(ctx: ToolContext, **kw) -> dict:
     from app.models.assignment import Assignment, AssignmentSubmission
 
     st = _require_student(ctx)
-    subject_ids = [s.id for s in ctx.db.query(Subject).filter(Subject.semester_id == st.semester_id).all()] or None
+    subject_ids = [s.id for s in ctx.db.query(Subject).filter(Subject.department_id == st.department_id).all()] or None
     q = ctx.db.query(Assignment).filter(Assignment.is_published.is_(True))
     if subject_ids:
         q = q.filter(Assignment.subject_id.in_(subject_ids))
@@ -231,26 +232,16 @@ def tool_get_my_announcements(ctx: ToolContext, **kw) -> dict:
 # ---- Class-scoped tools (faculty / CR) ----
 
 
-def tool_get_class_statistics(ctx: ToolContext, section: Optional[str] = None, **kw) -> dict:
+def tool_get_class_statistics(ctx: ToolContext, **kw) -> dict:
     if ctx.role not in (Role.FACULTY, Role.HOD, Role.CR, Role.ADMIN):
         raise ForbiddenError("Only faculty, CR, HOD or admin may view class statistics.")
-    target = section
     if ctx.role == Role.CR:
         st = _require_student(ctx)
-        target = st.section
+        return attendance_service.class_attendance_overview(ctx.db, st.department_id, st.course_id)
     elif ctx.role in (Role.FACULTY, Role.HOD):
         fac = _require_faculty(ctx)
-        if not target:
-            assigned = (
-                ctx.db.query(SubjectAssignment.section)
-                .filter(SubjectAssignment.faculty_id == fac.id)
-                .distinct()
-                .first()
-            )
-            target = assigned[0] if assigned else None
-    if not target:
-        raise BadRequestError("No class section could be determined for your account.")
-    return attendance_service.class_attendance_overview(ctx.db, target)
+        return attendance_service.class_attendance_overview(ctx.db, fac.department_id)
+    raise BadRequestError("No class could be determined for your account.")
 
 
 # ---- Department-scoped tools (HOD / admin) ----
@@ -352,7 +343,7 @@ TOOL_DESCRIPTIONS = {
     "get_my_performance": "The caller's own marks/performance per subject (students/CR only).",
     "get_my_projects": "Projects the caller belongs to, with milestone progress (students/CR only).",
     "get_my_announcements": "Announcements visible to the caller.",
-    "get_class_statistics": "Aggregate attendance statistics for a class section (faculty/CR/HOD/admin).",
+    "get_class_statistics": "Aggregate attendance statistics for a department/course (faculty/CR/HOD/admin).",
     "get_department_statistics": "Aggregate statistics for a department (HOD/admin only).",
     "get_faculty_workload": "Teaching workload per faculty member (HOD/admin only).",
 }
@@ -744,11 +735,11 @@ SUGGESTED_QUESTIONS: dict[str, list[str]] = {
     ],
     "cr": [
         "What is my class attendance overview?",
-        "Show class statistics for my section.",
+        "Show class statistics for my department.",
         "What announcements are there?",
     ],
     "faculty": [
-        "Show class statistics for my section.",
+        "Show class statistics for my department.",
         "Which students have low attendance?",
         "What is my teaching workload?",
     ],

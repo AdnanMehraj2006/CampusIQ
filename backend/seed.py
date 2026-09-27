@@ -49,8 +49,6 @@ from app.models import (  # noqa: E402
     ProjectMilestone,
     ProjectStatus,
     RefreshToken,
-    Semester,
-    Section,
     Student,
     Subject,
     SubjectAssignment,
@@ -131,7 +129,7 @@ def seed(db: Session) -> dict:
     created: dict[str, int] = {}
 
     # ------------------------------------------------------------------
-    # Academic session + semester
+    # Academic session
     # ------------------------------------------------------------------
     session = db.query(AcademicSession).filter(AcademicSession.is_active.is_(True)).first()
     if not session:
@@ -145,21 +143,6 @@ def seed(db: Session) -> dict:
         db.commit()
         db.refresh(session)
         created["sessions"] = 1
-
-    semester = db.query(Semester).filter(Semester.semester_number == 5).first()
-    if not semester:
-        semester = Semester(semester_number=5, academic_session_id=session.id)
-        db.add(semester)
-        db.commit()
-        db.refresh(semester)
-    created.setdefault("semesters", 1)
-
-    semester6 = db.query(Semester).filter(Semester.semester_number == 3).first()
-    if not semester6:
-        semester6 = Semester(semester_number=3, academic_session_id=session.id)
-        db.add(semester6)
-        db.commit()
-        db.refresh(semester6)
 
     # ------------------------------------------------------------------
     # Departments + courses
@@ -198,119 +181,8 @@ def seed(db: Session) -> dict:
     created["courses"] = len(courses)
 
     # ------------------------------------------------------------------
-    # Sections (contextual sections with academic hierarchy)
-    # Same section name (e.g., "A") can exist in different academic contexts
+    # Departments + courses
     # ------------------------------------------------------------------
-    
-    # Get CSE B.Tech course and create semesters for testing
-    cse_dept = departments["CSE"]
-    cse_course = courses["CSE"]
-    
-    # Create semester 6 for CSE B.Tech
-    semester6 = db.query(Semester).filter(
-        Semester.semester_number == 6,
-        Semester.course_id == cse_course.id,
-    ).first()
-    if not semester6:
-        semester6 = Semester(semester_number=6, academic_session_id=session.id, course_id=cse_course.id)
-        db.add(semester6)
-        db.commit()
-    
-    # Create semester 1 for CSE M.Tech (different course)
-    mtech_course = db.query(Course).filter(Course.code == "MTECH-CSE").first()
-    if not mtech_course:
-        mtech_course = Course(
-            name="M.Tech Computer Science",
-            code="MTECH-CSE",
-            department_id=cse_dept.id,
-            duration_years=2,
-        )
-        db.add(mtech_course)
-        db.commit()
-    
-    semester1 = db.query(Semester).filter(
-        Semester.semester_number == 1,
-        Semester.course_id == mtech_course.id,
-    ).first()
-    if not semester1:
-        semester1 = Semester(semester_number=1, academic_session_id=session.id, course_id=mtech_course.id)
-        db.add(semester1)
-        db.commit()
-    
-    # IT B.Tech course (if not already exists)
-    it_dept = departments["IT"]
-    it_course = courses["IT"]
-    
-    # Create sections across different academic contexts - same name but different context
-    # CSE B.Tech Semester 5
-    for sec_name, sec_desc in [("A", "Section A - CSE B.Tech Sem 5"), ("B", "Section B - CSE B.Tech Sem 5")]:
-        sec = db.query(Section).filter(
-            Section.name == sec_name,
-            Section.course_id == cse_course.id,
-            Section.semester_id == semester.id,
-        ).first()
-        if not sec:
-            db.add(Section(
-                name=sec_name,
-                description=sec_desc,
-                is_active=True,
-                course_id=cse_course.id,
-                semester_id=semester.id,
-            ))
-            db.commit()
-    
-    # CSE B.Tech Semester 6 (same course, different semester)
-    for sec_name, sec_desc in [("A", "Section A - CSE B.Tech Sem 6"), ("B", "Section B - CSE B.Tech Sem 6")]:
-        sec = db.query(Section).filter(
-            Section.name == sec_name,
-            Section.course_id == cse_course.id,
-            Section.semester_id == semester6.id,
-        ).first()
-        if not sec:
-            db.add(Section(
-                name=sec_name,
-                description=sec_desc,
-                is_active=True,
-                course_id=cse_course.id,
-                semester_id=semester6.id,
-            ))
-            db.commit()
-    
-    # CSE M.Tech Semester 1 (different course, same section name)
-    for sec_name, sec_desc in [("A", "Section A - CSE M.Tech Sem 1"), ("B", "Section B - CSE M.Tech Sem 1")]:
-        sec = db.query(Section).filter(
-            Section.name == sec_name,
-            Section.course_id == mtech_course.id,
-            Section.semester_id == semester1.id,
-        ).first()
-        if not sec:
-            db.add(Section(
-                name=sec_name,
-                description=sec_desc,
-                is_active=True,
-                course_id=mtech_course.id,
-                semester_id=semester1.id,
-            ))
-            db.commit()
-    
-    # IT B.Tech Semester 5 (different department)
-    for sec_name, sec_desc in [("A", "Section A - IT B.Tech Sem 5"), ("B", "Section B - IT B.Tech Sem 5")]:
-        sec = db.query(Section).filter(
-            Section.name == sec_name,
-            Section.course_id == it_course.id,
-            Section.semester_id == semester.id,
-        ).first()
-        if not sec:
-            db.add(Section(
-                name=sec_name,
-                description=sec_desc,
-                is_active=True,
-                course_id=it_course.id,
-                semester_id=semester.id,
-            ))
-            db.commit()
-    
-    created["sections"] = db.query(Section).count()
 
     # ------------------------------------------------------------------
     # Users: admin, HODs, faculty
@@ -407,7 +279,6 @@ def seed(db: Session) -> dict:
                     name=sname,
                     code=stored_code,
                     credits=credits,
-                    semester_id=semester.id if dept_code == "CSE" else semester6.id,
                     department_id=departments[dept_code].id,
                     weekly_periods=periods,
                 )
@@ -420,19 +291,18 @@ def seed(db: Session) -> dict:
     cse_subjects = [s for s in subjects if s.department_id == departments["CSE"].id]
 
     # ------------------------------------------------------------------
-    # Students (section A = main demo section)
+    # Students
     # ------------------------------------------------------------------
-    section = "A"
     students: list[Student] = []
 
     # Named demo students first
     demo_students = [
-        ("adnan@campusiq.edu", "ADNAN", "Adnan Khan", "CSE", section, False),
+        ("adnan@campusiq.edu", "ADNAN", "Adnan Khan", "CSE", False),
     ]
     cr_user = db.query(User).filter(User.email == "cr@campusiq.edu").first()
 
     enrollment_counter = 1
-    for email, _cid, name, dept_code, sec, _is_cr in demo_students:
+    for email, _cid, name, dept_code, _is_cr in demo_students:
         user = db.query(User).filter(User.email == email).first()
         if not user:
             user = User(
@@ -453,8 +323,6 @@ def seed(db: Session) -> dict:
                 enrollment_number=f"CS23{1000 + enrollment_counter:03d}",
                 department_id=departments[dept_code].id,
                 course_id=courses[dept_code].id,
-                semester_id=semester.id,
-                section=sec,
                 admission_year=2023,
                 guardian_name="Mr. Salman Khan",
                 guardian_phone="+91 98000 11111",
@@ -489,8 +357,6 @@ def seed(db: Session) -> dict:
             enrollment_number="CS231002",
             department_id=departments["CSE"].id,
             course_id=courses["CSE"].id,
-            semester_id=semester.id,
-            section=section,
             admission_year=2023,
         )
         db.add(cr_student)
@@ -527,43 +393,35 @@ def seed(db: Session) -> dict:
                 enrollment_number=f"CS23{1000 + i:03d}",
                 department_id=departments["CSE"].id,
                 course_id=courses["CSE"].id,
-                semester_id=semester.id,
-                section=section if i <= 20 else "B",
                 admission_year=2023,
             )
             db.add(st)
             db.commit()
             db.refresh(st)
-        if st.section == section:
-            students.append(st)
-    created["students"] = db.query(Student).count()
-
-    section_a = list({s.id: s for s in students if s.section == section}.values())
+        created["students"] = db.query(Student).count()
 
     # ------------------------------------------------------------------
-    # Subject assignments (faculty -> subject -> section)
+    # Subject assignments (faculty -> subject)
     # ------------------------------------------------------------------
     faculty_by_email = {e: f for e, f in faculty_map.items()}
     assignment_specs = [
-        ("faculty@campusiq.edu", 0, "A"), ("faculty@campusiq.edu", 1, "A"),
-        ("faculty2@campusiq.edu", 2, "A"), ("faculty2@campusiq.edu", 3, "A"),
-        ("faculty3@campusiq.edu", 4, "A"), ("faculty3@campusiq.edu", 5, "A"),
-        ("faculty@campusiq.edu", 6, "A"),
-        ("faculty@campusiq.edu", 0, "B"), ("faculty2@campusiq.edu", 2, "B"),
+        ("faculty@campusiq.edu", 0), ("faculty@campusiq.edu", 1),
+        ("faculty2@campusiq.edu", 2), ("faculty2@campusiq.edu", 3),
+        ("faculty3@campusiq.edu", 4), ("faculty3@campusiq.edu", 5),
+        ("faculty@campusiq.edu", 6),
     ]
     sa_records: list[SubjectAssignment] = []
-    for email, subj_index, sec in assignment_specs:
+    for email, subj_index in assignment_specs:
         subj = cse_subjects[subj_index % len(cse_subjects)]
         fac = faculty_by_email[email]
         existing = db.query(SubjectAssignment).filter(
             SubjectAssignment.subject_id == subj.id,
             SubjectAssignment.faculty_id == fac.id,
-            SubjectAssignment.section == sec,
         ).first()
         if existing:
             sa_records.append(existing)
             continue
-        sa = SubjectAssignment(subject_id=subj.id, faculty_id=fac.id, section=sec, semester_id=semester.id)
+        sa = SubjectAssignment(subject_id=subj.id, faculty_id=fac.id)
         db.add(sa)
         db.commit()
         db.refresh(sa)
@@ -571,16 +429,16 @@ def seed(db: Session) -> dict:
     created["subject_assignments"] = len(sa_records)
 
     # ------------------------------------------------------------------
-    # Attendance (past ~12 weeks per subject, per section A student)
+    # Attendance (past ~12 weeks per subject, per student)
     # ------------------------------------------------------------------
     if db.query(Attendance).count() == 0:
         today = date.today()
         seen: set[tuple[int, int, date]] = set()
         att_records = []
         for subj in cse_subjects:
-            # Which faculty teaches this subject in section A
+            # Which faculty teaches this subject
             sa = db.query(SubjectAssignment).filter(
-                SubjectAssignment.subject_id == subj.id, SubjectAssignment.section == section
+                SubjectAssignment.subject_id == subj.id,
             ).first()
             if not sa:
                 continue
@@ -591,7 +449,7 @@ def seed(db: Session) -> dict:
                     d = today - timedelta(days=week * 7 + k + 1)
                     if d.weekday() > 5:
                         continue
-                    for st in section_a:
+                    for st in students:
                         key = (st.id, subj.id, d)
                         if key in seen:
                             continue
@@ -615,8 +473,8 @@ def seed(db: Session) -> dict:
                                 marked_by=marked_by,
                             )
                         )
-                        if len(att_records) >= 4000:
-                            break
+                    if len(att_records) >= 4000:
+                        break
                     if len(att_records) >= 4000:
                         break
                 if len(att_records) >= 4000:
@@ -637,7 +495,7 @@ def seed(db: Session) -> dict:
     for i, title in enumerate(ASSIGNMENT_TITLES):
         subj = cse_subjects[i % len(cse_subjects)]
         sa = db.query(SubjectAssignment).filter(
-            SubjectAssignment.subject_id == subj.id, SubjectAssignment.section == section
+            SubjectAssignment.subject_id == subj.id,
         ).first()
         if not sa:
             continue
@@ -654,8 +512,6 @@ def seed(db: Session) -> dict:
             instructions="Submit a PDF report. Late submissions attract a 10% penalty.",
             subject_id=subj.id,
             faculty_id=sa.faculty_id,
-            section=section,
-            semester_id=semester.id,
             deadline=deadline,
             max_marks=20,
             allow_late=True,
@@ -669,9 +525,12 @@ def seed(db: Session) -> dict:
     # Submissions for the first two (past-deadline) assignments
     if db.query(AssignmentSubmission).count() == 0:
         subs = []
-        for st in section_a:
+        seen_submissions = set()
+        for st in students[:20]:  # Limit to 20 students
             for a in assignments[:2]:
-                if random.random() < 0.8:
+                key = (a.id, st.id)
+                if random.random() < 0.8 and key not in seen_submissions:
+                    seen_submissions.add(key)
                     subs.append(
                         AssignmentSubmission(
                             assignment_id=a.id,
@@ -701,7 +560,7 @@ def seed(db: Session) -> dict:
             ("quiz", "Surprise Quiz", 10, 10),
             ("assignment", "Coursework", 15, 15),
         ]
-        for st in section_a:
+        for st in students:
             for subj in cse_subjects:
                 for atype, title, mx, score_cap in assessment_types:
                     base = 0.82 if st.user.email == "adnan@campusiq.edu" else random.uniform(0.5, 0.95)
@@ -760,7 +619,6 @@ def seed(db: Session) -> dict:
             title=title,
             description=desc,
             department_id=departments["CSE"].id,
-            semester_id=semester.id,
             supervisor_id=fac.id,
             status=str(status),
             deadline=now + timedelta(days=random.randint(20, 90)),
@@ -810,9 +668,9 @@ def seed(db: Session) -> dict:
     created["projects"] = len(projects)
 
     # ------------------------------------------------------------------
-    # Timetable (section A)
+    # Timetable
     # ------------------------------------------------------------------
-    if db.query(TimetableEntry).filter(TimetableEntry.section == section).count() == 0:
+    if db.query(TimetableEntry).count() == 0:
         days = [DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY, DayOfWeek.THURSDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY]
         period_times = [
             ("09:00", "09:55"), ("10:00", "10:55"), ("11:00", "11:55"),
@@ -823,7 +681,7 @@ def seed(db: Session) -> dict:
             for period in range(1, 7):
                 subj = cse_subjects[(days.index(day) + period) % len(cse_subjects)]
                 sa = db.query(SubjectAssignment).filter(
-                    SubjectAssignment.subject_id == subj.id, SubjectAssignment.section == section
+                    SubjectAssignment.subject_id == subj.id,
                 ).first()
                 if not sa:
                     continue
@@ -835,8 +693,6 @@ def seed(db: Session) -> dict:
                         subject_id=subj.id,
                         faculty_id=sa.faculty_id,
                         classroom_id=room.id,
-                        section=section,
-                        semester_id=semester.id,
                         academic_session_id=session.id,
                         start_time=period_times[period - 1][0],
                         end_time=period_times[period - 1][1],
@@ -853,11 +709,10 @@ def seed(db: Session) -> dict:
     # ------------------------------------------------------------------
     if db.query(Announcement).count() == 0:
         ann_specs = [
-            ("Welcome to CampusIQ - Spring Semester Begins!", "All classes for the 2025-2026 session begin Monday. Please check your timetable.", AnnouncementTarget.EVERYONE, Priority.HIGH),
-            ("Mid-Semester Examinations Schedule Released", "The midterm examination schedule is now available on the academic portal.", AnnouncementTarget.DEPARTMENT, Priority.NORMAL),
-            ("Section A: Database Lab Shifted to Lab-2", "Tomorrow's DBMS lab will be held in Lab-2 instead of A-102.", AnnouncementTarget.SECTION, Priority.NORMAL),
+            ("Welcome to CampusIQ - Session Begins!", "All classes for the 2025-2026 session begin Monday. Please check your timetable.", AnnouncementTarget.EVERYONE, Priority.HIGH),
+            ("Midterm Examinations Schedule Released", "The midterm examination schedule is now available on the academic portal.", AnnouncementTarget.DEPARTMENT, Priority.NORMAL),
             ("Industry Guest Lecture on Cloud Computing", "Join us Friday for a guest lecture by industry experts on cloud architecture.", AnnouncementTarget.EVERYONE, Priority.NORMAL),
-            ("Project Proposal Deadline Extended", "The final-year project proposal deadline has been extended by one week.", AnnouncementTarget.SEMESTER, Priority.HIGH),
+            ("Project Proposal Deadline Extended", "The final-year project proposal deadline has been extended by one week.", AnnouncementTarget.DEPARTMENT, Priority.HIGH),
             ("Library Timing Extended During Exams", "The library will remain open until 10 PM during the examination weeks.", AnnouncementTarget.EVERYONE, Priority.LOW),
         ]
         for i, (title, content, target, prio) in enumerate(ann_specs):
@@ -867,8 +722,6 @@ def seed(db: Session) -> dict:
                     content=content,
                     target_type=str(target),
                     department_id=departments["CSE"].id if target == AnnouncementTarget.DEPARTMENT else None,
-                    section=section if target == AnnouncementTarget.SECTION else None,
-                    semester_id=semester.id if target == AnnouncementTarget.SEMESTER else None,
                     priority=str(prio),
                     published_by=admin.id,
                     published_at=now - timedelta(days=i),
@@ -930,7 +783,6 @@ def seed(db: Session) -> dict:
                 target_type="subject",
                 subject_id=cse_subjects[0].id,
                 department_id=departments["CSE"].id,
-                section=section,
                 rating=5,
                 message="The DSA classes are well structured and the assignments are relevant.",
                 status="open",

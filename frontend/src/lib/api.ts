@@ -9,7 +9,6 @@ import {
   Faculty,
   Subject,
   SubjectAssignment,
-  ClassTeacher,
   Department,
   Course,
   AcademicSession,
@@ -29,7 +28,6 @@ import {
   Notification,
   AuditLog,
   SearchResult,
-  SectionAttendance,
   AttendanceRoster,
   AnnouncementTargets,
   AISuggestion,
@@ -155,20 +153,20 @@ class ApiClient {
   }
 
   // Attendance - Faculty
-  getAttendanceRoster = async (subjectId: number, section: string, date?: string) => {
+   getAttendanceRoster = async (subjectId: number, departmentId: number, date?: string) => {
     return this.request<AttendanceRoster>(
       date
-        ? `/attendance/roster/${subjectId}/${section}?on_date=${date}`
-        : `/attendance/roster/${subjectId}/${section}`
+        ? `/attendance/roster/${subjectId}?department_id=${departmentId}&on_date=${date}`
+        : `/attendance/roster/${subjectId}?department_id=${departmentId}`
     )
   }
 
-  markAttendance = async (subjectId: number, section: string, date: string, marks: Array<{student_id: number, status: string}>) => {
+   markAttendance = async (subjectId: number, departmentId: number, date: string, marks: Array<{student_id: number, status: string}>) => {
     return this.request<AttendanceRecord[]>('/attendance', {
       method: 'POST',
       body: JSON.stringify({
         subject_id: subjectId,
-        section,
+        department_id: departmentId,
         date,
         marks,
       }),
@@ -182,13 +180,7 @@ class ApiClient {
     })
   }
 
-  getAttendanceBySection = async (section: string, subjectId?: number) => {
-    return this.request<SectionAttendance>(
-      subjectId
-        ? `/attendance/analytics/section/${section}?subject_id=${subjectId}`
-        : `/attendance/analytics/section/${section}`
-    )
-  }
+
 
   getMyAttendanceHistory = async (page: number = 1, pageSize: number = 20) => {
     return this.request<PaginatedResponse<AttendanceRecord>>(
@@ -201,8 +193,8 @@ class ApiClient {
     return this.request<TimetableEntry[]>('/timetable/my')
   }
 
-  getTimetableBySection = async (section: string) => {
-    return this.request<TimetableEntry[]>(`/timetable/section/${section}`)
+  getTimetableBySection = async () => {
+    return this.request<TimetableEntry[]>(`/timetable`)
   }
 
   getAllTimetableEntries = async (page: number = 1, pageSize: number = 20) => {
@@ -518,9 +510,9 @@ class ApiClient {
     window.URL.revokeObjectURL(url)
   }
 
-  getAttendanceReport = async (format: 'csv' | 'pdf' = 'csv', section?: string) => {
+   getAttendanceReport = async (format: 'csv' | 'pdf' = 'csv', departmentId?: number) => {
     const params = new URLSearchParams({ format })
-    if (section) params.append('section', section)
+    if (departmentId) params.append('department_id', String(departmentId))
     await this.downloadReport(`/reports/attendance?${params.toString()}`, `attendance_report.${format}`)
   }
 
@@ -549,7 +541,7 @@ class ApiClient {
     await this.downloadReport(`/reports/department?${params.toString()}`, `department_report.${format}`)
   }
 
-  getFacultyPerformance = async (facultyId?: number, page: number = 1, pageSize: number = 20) => {
+   getFacultyPerformance = async (facultyId?: number, page: number = 1, pageSize: number = 20) => {
     const parts = [`page=${page}`, `page_size=${pageSize}`]
     if (facultyId) parts.push(`faculty_id=${facultyId}`)
     return this.request<PaginatedResponse<{
@@ -560,7 +552,7 @@ class ApiClient {
       designation: string
       feedback_count: number
       average_rating: number
-      feedback: { rating: number; message: string; subject_id: number | null; section: string | null; created_at: string }[]
+      feedback: { rating: number; message: string; subject_id: number | null; created_at: string }[]
     }>>(`/reports/faculty-performance?${parts.join('&')}`)
   }
 
@@ -844,20 +836,18 @@ class ApiClient {
     return this.request<Subject[]>('/subjects/my')
   }
 
-  getSubjects = async (params: {
-    page?: number
-    pageSize?: number
-    q?: string
-    departmentId?: number
-    semesterId?: number
-  } = {}) => {
-    const { page = 1, pageSize = 50, q, departmentId, semesterId } = params
-    const parts = [`page=${page}`, `page_size=${pageSize}`]
-    if (q) parts.push(`q=${encodeURIComponent(q)}`)
-    if (departmentId) parts.push(`department_id=${departmentId}`)
-    if (semesterId) parts.push(`semester_id=${semesterId}`)
-    return this.request<PaginatedResponse<Subject>>(`/subjects?${parts.join('&')}`)
-  }
+   getSubjects = async (params: {
+     page?: number
+     pageSize?: number
+     q?: string
+     departmentId?: number
+   } = {}) => {
+     const { page = 1, pageSize = 50, q, departmentId } = params
+     const parts = [`page=${page}`, `page_size=${pageSize}`]
+     if (q) parts.push(`q=${encodeURIComponent(q)}`)
+     if (departmentId) parts.push(`department_id=${departmentId}`)
+     return this.request<PaginatedResponse<Subject>>(`/subjects?${parts.join('&')}`)
+   }
 
   getAllSubjects = async (departmentId?: number) => {
     return this.request<Subject[]>(
@@ -885,20 +875,18 @@ class ApiClient {
     })
   }
 
-  getSubjectAssignments = async (params: {
-    page?: number
-    pageSize?: number
-    facultyId?: number
-    section?: string
-    subjectId?: number
-  } = {}) => {
-    const { page = 1, pageSize = 50, facultyId, section, subjectId } = params
-    const parts = [`page=${page}`, `page_size=${pageSize}`]
-    if (facultyId) parts.push(`faculty_id=${facultyId}`)
-    if (section) parts.push(`section=${encodeURIComponent(section)}`)
-    if (subjectId) parts.push(`subject_id=${subjectId}`)
-    return this.request<PaginatedResponse<SubjectAssignment>>(`/subjects/assignments?${parts.join('&')}`)
-  }
+   getSubjectAssignments = async (params: {
+     page?: number
+     pageSize?: number
+     facultyId?: number
+     subjectId?: number
+   } = {}) => {
+     const { page = 1, pageSize = 50, facultyId, subjectId } = params
+     const parts = [`page=${page}`, `page_size=${pageSize}`]
+     if (facultyId) parts.push(`faculty_id=${facultyId}`)
+     if (subjectId) parts.push(`subject_id=${subjectId}`)
+     return this.request<PaginatedResponse<SubjectAssignment>>(`/subjects/assignments?${parts.join('&')}`)
+   }
 
   createSubjectAssignment = async (data: Partial<SubjectAssignment>) => {
     return this.request<SubjectAssignment>('/subjects/assignments', {
@@ -913,21 +901,21 @@ class ApiClient {
     })
   }
 
-  // Class teachers
-  getClassTeachers = async (params: { section?: string; semesterId?: number } = {}) => {
-    const { section, semesterId } = params
-    const parts: string[] = []
-    if (section) parts.push(`section=${encodeURIComponent(section)}`)
-    if (semesterId) parts.push(`semester_id=${semesterId}`)
-    return this.request<ClassTeacher[]>(`/class-teachers${parts.length ? `?${parts.join('&')}` : ''}`)
-  }
+   // Class teachers
+   getClassTeachers = async (params: { departmentId?: number; courseId?: number } = {}) => {
+     const { departmentId, courseId } = params
+     const parts: string[] = []
+     if (departmentId) parts.push(`department_id=${departmentId}`)
+     if (courseId) parts.push(`course_id=${courseId}`)
+     return this.request<Array<{id: number, faculty_id: number, department_id: number, course_id: number | null, faculty_name: string}>>(`/class-teachers${parts.length ? `?${parts.join('&')}` : ''}`)
+   }
 
-  createClassTeacher = async (data: Partial<ClassTeacher>) => {
-    return this.request<ClassTeacher>('/class-teachers', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    })
-  }
+   createClassTeacher = async (data: { faculty_id: number, department_id: number, course_id?: number }) => {
+     return this.request<ClassTeacher>('/class-teachers', {
+       method: 'POST',
+       body: JSON.stringify(data),
+     })
+   }
 
   deleteClassTeacher = async (id: number) => {
     return this.request(`/class-teachers/${id}`, {
@@ -955,7 +943,7 @@ class ApiClient {
     return this.request<PaginatedResponse<CRRequest>>(`/cr/requests?${parts.join('&')}`)
   }
 
-  createCRRequest = async (data: { request_type: string; title: string; description: string; section?: string }) => {
+   createCRRequest = async (data: { request_type: string; title: string; description: string; department_id?: number }) => {
     return this.request<CRRequest>('/cr/requests', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -976,14 +964,13 @@ class ApiClient {
     )
   }
 
-  submitFeedback = async (data: {
-    target_type: string
-    subject_id?: number
-    department_id?: number
-    section?: string
-    rating: number
-    message: string
-  }) => {
+   submitFeedback = async (data: {
+     target_type: string
+     subject_id?: number
+     department_id?: number
+     rating: number
+     message: string
+   }) => {
     return this.request('/feedback', {
       method: 'POST',
       body: JSON.stringify(data),

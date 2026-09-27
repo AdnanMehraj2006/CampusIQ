@@ -97,7 +97,7 @@ class TimetableConflictError(ConflictError):
 
 class AttendanceConflictError(ConflictError):
     error_code = "ATTENDANCE_CONFLICT"
-    message = "Attendance has already been marked for this subject/date/section."
+    message = "Attendance has already been marked for this subject/date."
 
 
 def error_envelope(
@@ -114,3 +114,4 @@ def error_envelope(
     if details:
         body["details"] = details
     return body
+

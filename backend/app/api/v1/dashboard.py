@@ -49,13 +49,13 @@ def student_dashboard(
     today = _today_weekday()
     today_classes = (
         db.query(TimetableEntry)
-        .filter(TimetableEntry.section == student.section, TimetableEntry.day == today)
+        .filter(TimetableEntry.day == today)
         .order_by(TimetableEntry.period)
         .all()
     )
 
-    # Upcoming assignments for the student's semester subjects
-    subject_ids = [s.id for s in db.query(Subject).filter(Subject.semester_id == student.semester_id).all()]
+    # Upcoming assignments for the student's department subjects
+    subject_ids = [s.id for s in db.query(Subject).filter(Subject.department_id == student.department_id).all()]
     now = datetime.now(timezone.utc)
     upcoming_assignments = (
         db.query(Assignment)
@@ -172,9 +172,8 @@ def student_dashboard(
             {"label": m.title, "percentage": m.percentage, "subject": m.subject.name if m.subject else None}
             for m in perf_rows
         ],
-        "section": student.section,
-        "semester_number": student.semester.semester_number if student.semester else None,
         "department_name": student.department.name if student.department else None,
+        "course_name": student.course.name if student.course else None,
     }
 
 
@@ -203,16 +202,13 @@ def faculty_dashboard(
         .all()
     )
 
-    sections = [s[0] for s in db.query(SubjectAssignment.section).filter(SubjectAssignment.faculty_id == fac.id).distinct().all()]
-
     # Attendance pending: subjects with no record today
     pending = []
     for s in subjects:
-        for sec in sections:
-            has_today = db.query(Attendance).filter(Attendance.subject_id == s.id, Attendance.date == date.today()).first()
-            roster = attendance_service.students_in_section(db, sec, s.id)
-            if roster and not has_today:
-                pending.append({"subject_id": s.id, "subject": s.name, "section": sec, "students": len(roster)})
+        has_today = db.query(Attendance).filter(Attendance.subject_id == s.id, Attendance.date == date.today()).first()
+        roster = attendance_service.students_in_subject(db, s.id)
+        if roster and not has_today:
+            pending.append({"subject_id": s.id, "subject": s.name, "students": len(roster)})
 
     now = datetime.now(timezone.utc)
     assignments = (
@@ -236,8 +232,8 @@ def faculty_dashboard(
         visible_announcements_query(db, current_user).order_by(Announcement.published_at.desc()).limit(5).all()
     )
 
-    # Class performance overview for the first section taught
-    class_overview = attendance_service.class_attendance_overview(db, sections[0]) if sections else None
+    # Class performance overview for department
+    class_overview = attendance_service.class_attendance_overview(db, fac.department_id)
 
     unread = db.query(Notification).filter(Notification.recipient_id == current_user.id, Notification.is_read.is_(False)).count()
 
@@ -254,11 +250,9 @@ def faculty_dashboard(
             {"label": "Unread Notifications", "value": unread, "sublabel": None, "trend": None},
         ],
         "subjects": [{"id": s.id, "name": s.name, "code": s.code, "credits": s.credits} for s in subjects],
-        "sections": sections,
         "today_classes": [
             {
                 "period": c.period,
-                "section": c.section,
                 "subject": c.subject.name if c.subject else None,
                 "room": c.classroom.room_number if c.classroom else None,
                 "time": f"{c.start_time or ''} - {c.end_time or ''}",
@@ -323,9 +317,9 @@ def hod_dashboard(
         pct = round(att / con * 100, 2) if con else 0.0
         total_attended += att
         total_conducted += con
-        student_rows.append({"id": s.id, "name": s.user.name, "percentage": pct, "section": s.section})
+        student_rows.append({"id": s.id, "name": s.user.name, "percentage": pct})
         if con > 0 and pct < settings_attendance_threshold():
-            below_threshold.append({"id": s.id, "name": s.user.name, "percentage": pct, "section": s.section})
+            below_threshold.append({"id": s.id, "name": s.user.name, "percentage": pct})
 
     dept_attendance = round(total_attended / total_conducted * 100, 2) if total_conducted else 0.0
     student_rows.sort(key=lambda x: x["percentage"])
@@ -506,12 +500,12 @@ def cr_dashboard(
         raise ForbiddenError("No student profile is linked to your account.")
     st = current_user.student_profile
 
-    # Scope the class view to the CR's own Department + Semester + Section.
+    # Scope the class view to the CR's own Department.
     overview = attendance_service.class_attendance_overview(
-        db, st.section, department_id=st.department_id, semester_id=st.semester_id
+        db, st.department_id
     )
     timetable = (
-        db.query(TimetableEntry).filter(TimetableEntry.section == st.section).order_by(TimetableEntry.day, TimetableEntry.period).all()
+        db.query(TimetableEntry).order_by(TimetableEntry.day, TimetableEntry.period).all()
     )
     announcements = (
         visible_announcements_query(db, current_user).order_by(Announcement.published_at.desc()).limit(5).all()
@@ -524,10 +518,9 @@ def cr_dashboard(
     return {
         "success": True,
         "role": str(current_user.role),
-        "user": {"name": current_user.name, "section": st.section},
-        "section": st.section,
+        "user": {"name": current_user.name, "department": st.department.name if st.department else None},
         "cards": [
-            {"label": "Class Average Attendance", "value": f"{overview['overall']}%", "sublabel": f"Section {st.section}", "trend": None},
+            {"label": "Class Average Attendance", "value": f"{overview['overall']}%", "sublabel": f"Department {st.department.name if st.department else ''}", "trend": None},
             {"label": "Students Below Threshold",
              "value": len([s for s in overview["students"] if s["zone"] != "safe"]),
              "sublabel": f"threshold {settings_attendance_threshold():g}%", "trend": None},

@@ -29,8 +29,6 @@ def _announcement_out(a: Announcement) -> dict:
         "target_type": a.target_type,
         "department_id": a.department_id,
         "course_id": a.course_id,
-        "semester_id": a.semester_id,
-        "section": a.section,
         "priority": a.priority,
         "published_by": a.published_by,
         "attachment_path": a.attachment_path,
@@ -112,13 +110,11 @@ def update_announcement(
     data = payload.model_dump(exclude_unset=True)
     # Re-targeting is allowed, but must still respect the publisher's scope
     # (e.g. a HOD may not retarget an announcement to another department).
-    if any(k in data for k in ("target_type", "department_id", "course_id", "semester_id", "section")):
+    if any(k in data for k in ("target_type", "department_id", "course_id")):
         announcement_service.validate_publish_scope(db, current_user, {
             "target_type": data.get("target_type", a.target_type),
             "department_id": data.get("department_id", a.department_id),
             "course_id": data.get("course_id", a.course_id),
-            "semester_id": data.get("semester_id", a.semester_id),
-            "section": data.get("section", a.section),
         })
     for k, v in data.items():
         setattr(a, k, v)
@@ -175,19 +171,11 @@ def allowed_targets(
 ):
     """Which audiences the current user may publish to (drives the UI)."""
     if current_user.role == "admin":
-        targets = ["everyone", "department", "course", "semester", "section", "faculty"]
-        from app.models.people import Student
-        sections = [s[0] for s in db.query(Student.section).distinct().all()]
+        targets = ["everyone", "department", "course", "faculty"]
     elif current_user.role == "hod":
-        targets = ["department", "course", "semester", "section", "faculty"]
-        sections = []
+        targets = ["department", "course", "faculty"]
     elif current_user.role == "faculty":
-        targets = ["section", "semester", "faculty"]
-        from app.models.subject import SubjectAssignment
-
-        sections = [s[0] for s in db.query(SubjectAssignment.section)
-                    .filter(SubjectAssignment.faculty_id == current_user.faculty_profile.id).distinct().all()]
+        targets = ["faculty"]
     else:
         targets = []
-        sections = []
-    return {"targets": targets, "sections": sections}
+    return {"targets": targets}

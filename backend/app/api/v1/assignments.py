@@ -44,8 +44,6 @@ def _assignment_out(db: Session, a: Assignment, viewer: User | None = None) -> d
         "instructions": a.instructions,
         "subject_id": a.subject_id,
         "faculty_id": a.faculty_id,
-        "section": a.section,
-        "semester_id": a.semester_id,
         "deadline": a.deadline,
         "max_marks": a.max_marks,
         "attachment_path": a.attachment_path,
@@ -92,7 +90,6 @@ def _assert_faculty_owns(db: Session, current_user: User, assignment: Assignment
 @router.get("/assignments", response_model=dict)
 def list_assignments(
     subject_id: int | None = None,
-    section: str | None = None,
     mine: bool = False,
     db: Session = Depends(get_db),
     page_params: dict = Depends(pagination_params),
@@ -103,15 +100,13 @@ def list_assignments(
         from app.models.subject import Subject
 
         subject_ids = [
-            s.id for s in db.query(Subject).filter(Subject.semester_id == current_user.student_profile.semester_id).all()
+            s.id for s in db.query(Subject).filter(Subject.department_id == current_user.student_profile.department_id).all()
         ]
         q = q.filter(Assignment.subject_id.in_(subject_ids) if subject_ids else False)
     if current_user.role == Role.FACULTY and current_user.faculty_profile:
         q = q.filter(Assignment.faculty_id == current_user.faculty_profile.id)
     if subject_id:
         q = q.filter(Assignment.subject_id == subject_id)
-    if section:
-        q = q.filter((Assignment.section == section) | Assignment.section.is_(None))
     if page_params["q"]:
         q = q.filter(Assignment.title.ilike(f"%{page_params['q']}%"))
     total = q.count()
@@ -141,15 +136,10 @@ def create_assignment(
     log_from_request(db, request, current_user, "assignment.create", "assignment", resource_id=assignment.id)
     try:
         subject = assignment.subject
-        roster = db.query(Student).join(User, User.id == Student.user_id).filter(
-            Student.semester_id == assignment.subject.semester_id if subject and subject.semester_id else None,
-            User.status == "active",
-        )
-        if assignment.section:
-            roster = roster.filter(Student.section == assignment.section)
+        roster = attendance_service.students_in_subject(db, subject.id)
         notify_students(
             db,
-            student_ids=[s.id for s in roster.all()],
+            student_ids=[s.id for s in roster],
             type_="assignment",
             title=f"New assignment: {assignment.title}",
             message=f"{subject.name if subject else ''} - due {assignment.deadline}",
