@@ -5,7 +5,7 @@ export default function HODAnnouncements() {
     <AnnouncementFeed
       queryKey="hod-announcements"
       canManage
-      subtitle="Publish notices to your department, courses, sections or faculty"
+      subtitle="Publish notices to your department, courses or faculty"
     />
   )
 }
