@@ -43,7 +43,6 @@ interface ReportDef {
   description: string
   icon: React.ComponentType<{ className?: string }>
   roles: string[]
-  needsSection?: boolean
   needsDepartment?: boolean
   needsAssignment?: boolean
 }
@@ -55,7 +54,6 @@ const REPORTS: ReportDef[] = [
     description: 'Per-student attendance totals, percentages and zone for the selected scope.',
     icon: Calendar,
     roles: ['admin', 'hod', 'faculty'],
-    needsSection: true,
   },
   {
     key: 'performance',
@@ -141,7 +139,6 @@ interface ReportsPageProps {
 
 export function ReportsPage({ role }: ReportsPageProps) {
   const [format, setFormat] = useState<'csv' | 'pdf'>('csv')
-  const [section, setSection] = useState('')
   const [departmentId, setDepartmentId] = useState('')
   const [assignmentId, setAssignmentId] = useState('')
   const [preview, setPreview] = useState<{ title: string; path: string } | null>(null)
@@ -156,19 +153,10 @@ export function ReportsPage({ role }: ReportsPageProps) {
     queryFn: () => api.getAssignments(1, 200),
   })
 
-  const { data: sections } = useQuery<string[]>({
-    queryKey: ['report-sections'],
-    queryFn: async () => {
-      const rows = await api.getStudents({ pageSize: 100 })
-      return Array.from(new Set(rows.items.map((s) => s.section).filter(Boolean)))
-    },
-  })
-
   const available = REPORTS.filter((r) => r.roles.includes(role))
 
   const buildPath = (def: ReportDef): string => {
     const params = new URLSearchParams({ format })
-    if (def.needsSection && section) params.append('section', section)
     if (def.needsDepartment && departmentId) params.append('department_id', departmentId)
     if (def.needsAssignment && assignmentId) params.append('assignment_id', assignmentId)
     return `/reports/${def.key}?${params.toString()}`
@@ -178,7 +166,7 @@ export function ReportsPage({ role }: ReportsPageProps) {
     const run = async () => {
       switch (def.key) {
         case 'attendance':
-          await api.getAttendanceReport(format, section || undefined)
+          await api.getAttendanceReport(format, departmentId ? Number(departmentId) : undefined)
           break
         case 'performance':
           await api.getPerformanceReport(format)
@@ -249,18 +237,7 @@ export function ReportsPage({ role }: ReportsPageProps) {
                 </div>
               </CardHeader>
               <CardContent className="flex-1 space-y-3">
-                {def.needsSection && (
-                  <Field label="Section" hint="Leave empty for all sections in scope">
-                    <Select value={section} onChange={(e) => setSection(e.target.value)}>
-                      <option value="">All sections</option>
-                      {(sections || []).map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
-                )}
+
                 {def.needsDepartment && role === 'admin' && (
                   <Field label="Department" hint="Leave empty for all departments">
                     <Select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>

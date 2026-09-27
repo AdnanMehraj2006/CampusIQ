@@ -33,7 +33,7 @@ import HODReports from '@/pages/hod/Reports'
 import HODStudents from '@/pages/hod/Students'
 import HODFaculty from '@/pages/hod/Faculty'
 import HODSubjects from '@/pages/hod/Subjects'
-import HODAttendance from '@/pages/hod/Attendance'
+
 import HODPerformance from '@/pages/hod/Performance'
 import HODTimetable from '@/pages/hod/Timetable'
 import AdminDashboard from '@/pages/admin/Dashboard'
@@ -161,9 +161,8 @@ function App() {
               <Route path="dashboard" element={<HODDashboard />} />
               <Route path="students" element={<HODStudents />} />
               <Route path="faculty" element={<HODFaculty />} />
-              <Route path="subjects" element={<HODSubjects />} />
-              <Route path="attendance" element={<HODAttendance />} />
-              <Route path="performance" element={<HODPerformance />} />
+               <Route path="subjects" element={<HODSubjects />} />
+               <Route path="performance" element={<HODPerformance />} />
               <Route path="timetable" element={<HODTimetable />} />
               <Route path="announcements" element={<HODAnnouncements />} />
               <Route path="reports" element={<HODReports />} />
