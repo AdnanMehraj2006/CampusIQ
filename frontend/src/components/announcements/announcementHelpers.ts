@@ -11,15 +11,11 @@ export const TARGET_LABELS: Record<string, string> = {
   everyone: 'Everyone',
   department: 'Department',
   course: 'Course',
-  semester: 'Semester',
-  section: 'Section',
   faculty: 'Faculty',
 }
 
 export function targetTypeLabel(a: Announcement): string {
-  const base = TARGET_LABELS[a.target_type] || a.target_type
-  if (a.target_type === 'section') return `Section ${a.section || '-'}`
-  return base
+  return TARGET_LABELS[a.target_type] || a.target_type
 }
 
 export function priorityLabel(priority: string): string {

@@ -39,7 +39,6 @@ type FacultyFeedback = {
     rating: number
     message: string
     subject_id: number | null
-    section: string | null
     created_at: string
   }[]
 }
@@ -236,3 +235,4 @@ export default function HODPerformance() {
     </div>
   )
 }
+

@@ -5,7 +5,7 @@ export default function CRAnnouncements() {
     <AnnouncementFeed
       queryKey="cr-announcements"
       canManage={false}
-      subtitle="Notices for your class and section"
+      subtitle="Notices for your class"
     />
   )
 }

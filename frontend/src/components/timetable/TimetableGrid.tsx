@@ -47,9 +47,6 @@ export function TimetableGrid({ entries }: { entries: TimetableEntry[] }) {
                         <MapPin className="h-3 w-3" />
                         {entry.room_number || 'TBA'}
                       </span>
-                      {entry.section && (
-                        <span className="text-xs text-gray-500 dark:text-gray-400">Sec {entry.section}</span>
-                      )}
                     </div>
                   </div>
                 ))

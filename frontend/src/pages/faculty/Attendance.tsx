@@ -11,7 +11,6 @@ type StudentRoster = AttendanceRosterStudent
 export default function FacultyAttendance() {
   const queryClient = useQueryClient()
   const [subjectId, setSubjectId] = useState<number>()
-  const [section, setSection] = useState<string>()
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0])
   const [selectedStudents, setSelectedStudents] = useState<Map<number, 'present' | 'absent' | 'late' | 'excused'>>(new Map())
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -27,12 +26,12 @@ export default function FacultyAttendance() {
   })
 
   const { data: roster, isLoading: loadingRoster, refetch } = useQuery({
-    queryKey: ['attendance-roster', subjectId, section, date],
+    queryKey: ['attendance-roster', subjectId, date],
     queryFn: async () => {
-      if (!subjectId || !section) return null
-      return api.getAttendanceRoster(subjectId, section, date)
+      if (!subjectId) return null
+      return api.getAttendanceRoster(subjectId, 1, date)
     },
-    enabled: !!subjectId && !!section,
+    enabled: !!subjectId,
   })
 
   useEffect(() => {
@@ -60,7 +59,7 @@ export default function FacultyAttendance() {
   }
 
   const handleSubmit = async () => {
-    if (!subjectId || !section) return
+    if (!subjectId) return
 
     const marks = Array.from(selectedStudents.entries()).map(([studentId, status]) => ({
       student_id: studentId,
@@ -74,7 +73,7 @@ export default function FacultyAttendance() {
 
     setIsSubmitting(true)
     try {
-      await api.markAttendance(subjectId, section, date, marks)
+      await api.markAttendance(subjectId, 1, date, marks)
       toast.success('Attendance marked successfully')
       queryClient.invalidateQueries({ queryKey: ['my-attendance'] })
       queryClient.invalidateQueries({ queryKey: ['attendance-roster'] })
@@ -111,22 +110,6 @@ export default function FacultyAttendance() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Section</label>
-            <select
-              value={section || ''}
-              onChange={(e) => setSection(e.target.value || undefined)}
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            >
-              <option value="">Select section</option>
-              {subjectId && !loadingDashboard && (
-                ['A', 'B', 'C', 'D'].map(sec => (
-                  <option key={sec} value={sec}>{sec}</option>
-                ))
-              )}
-            </select>
-          </div>
-
-          <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
             <input
               type="date"
@@ -137,23 +120,21 @@ export default function FacultyAttendance() {
           </div>
         </div>
         <div className="mt-4">
-          <Button onClick={() => refetch()} disabled={!subjectId || !section}>
+          <Button onClick={() => refetch()} disabled={!subjectId}>
             <RefreshCw className="w-4 h-4 mr-2" />
             Load Roster
           </Button>
         </div>
       </div>
 
-      {subjectId && section && (
+      {subjectId && (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
           <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
             <div>
               <h2 className="font-semibold text-gray-900 dark:text-white">Attendance Roster</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {date} • Section {section}
-              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{date}</p>
             </div>
-            <Button onClick={handleMarkAllPresent} disabled={!subjectId || !section} className="bg-green-600 hover:bg-green-700">
+            <Button onClick={handleMarkAllPresent} disabled={!subjectId} className="bg-green-600 hover:bg-green-700">
               <Check className="w-4 h-4 mr-2" />
               Mark All Present
             </Button>
@@ -227,18 +208,17 @@ export default function FacultyAttendance() {
           <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
             <div className="space-y-1">
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {selectedStudents.size} / {roster?.students.length || 0} students marked
+                    {selectedStudents.size} / {roster?.students.length || 0} students marked
               </p>
               {roster?.already_marked && (
                 <p className="text-sm text-amber-600 dark:text-amber-400">
-                  Attendance for {date} is already recorded for this subject and cannot be submitted again from this
-                  screen.
+                  Attendance for {date} is already recorded for this subject.
                 </p>
               )}
             </div>
             <Button
               onClick={handleSubmit}
-              disabled={selectedStudents.size === 0 || isSubmitting || !subjectId || !section || roster?.already_marked}
+              disabled={selectedStudents.size === 0 || isSubmitting || !subjectId || roster?.already_marked}
               className="bg-green-600 hover:bg-green-700"
             >
               {isSubmitting ? 'Submitting...' : 'Submit Attendance'}
@@ -261,9 +241,8 @@ export default function FacultyAttendance() {
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Date</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Student</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Enrollment</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Subject</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Section</th>
-                  <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Subject</th>
+                    <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Note</th>
                 </tr>
               </thead>
@@ -273,9 +252,8 @@ export default function FacultyAttendance() {
                     <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{record.date}</td>
                     <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{record.student_name}</td>
                     <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">{record.enrollment_number}</td>
-                    <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{record.subject_name}</td>
-                    <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{record.section}</td>
-                    <td className="px-4 py-2 text-center">
+                     <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{record.subject_name}</td>
+                     <td className="px-4 py-2 text-center">
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
                           ${record.status === 'present' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'

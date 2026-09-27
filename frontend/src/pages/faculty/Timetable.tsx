@@ -42,8 +42,7 @@ export default function FacultyTimetable() {
                       <span>-</span>
                       <span>{format(new Date(`2000-01-01T${entry.end_time}`), 'h:mm a')}</span>
                     </div>
-                    <p className="font-medium text-gray-900 dark:text-white text-sm">{entry.subject_name}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Section: {entry.section}</p>
+                     <p className="font-medium text-gray-900 dark:text-white text-sm">{entry.subject_name}</p>
                   </div>
                 ))
               )}

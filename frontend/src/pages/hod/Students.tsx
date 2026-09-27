@@ -24,20 +24,12 @@ import { toast } from 'react-hot-toast'
 export default function HODStudents() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
-  const [section, setSection] = useState('')
   const [crRemoving, setCrRemoving] = useState<number | null>(null)
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['hod-students', page, search, section],
+    queryKey: ['hod-students', page, search],
     queryFn: () =>
-      api.getStudents({ page, pageSize: 15, q: search || undefined, section: section || undefined }),
-  })
-
-  // Section options always come from the complete database list - never from
-  // the currently displayed rows, so filtering can never shrink the options.
-  const { data: sectionsData } = useQuery({
-    queryKey: ['all-sections'],
-    queryFn: () => api.getAllSections(),
+      api.getStudents({ page, pageSize: 15, q: search || undefined }),
   })
 
   const assignCRMutation = useMutation({
@@ -57,14 +49,13 @@ export default function HODStudents() {
 
   const students = data?.items || []
   const pagination = data?.pagination
-  const sections = sectionsData?.map((s) => s.name) || []
 
   return (
     <div className="space-y-6">
       <PageHeader title="Students" subtitle="Student records within your access scope" />
 
       <Card>
-        <CardContent className="flex flex-col gap-3 pt-6 sm:flex-row sm:items-center">
+        <CardContent className="flex flex-col gap-3 pt-6">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <Input
@@ -74,14 +65,6 @@ export default function HODStudents() {
               className="pl-9"
             />
           </div>
-          <Select value={section} onChange={(e) => { setSection(e.target.value); setPage(1) }} className="sm:w-40">
-            <option value="">All sections</option>
-            {sections.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </Select>
         </CardContent>
       </Card>
 
@@ -98,14 +81,12 @@ export default function HODStudents() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Student</TableHead>
-                <TableHead>Enrollment</TableHead>
-                <TableHead>Section</TableHead>
-                <TableHead>Semester</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Attendance</TableHead>
-                <TableHead className="text-right">CR</TableHead>
-              </TableRow>
+                 <TableHead>Student</TableHead>
+                 <TableHead>Enrollment</TableHead>
+                 <TableHead>Role</TableHead>
+                 <TableHead>Attendance</TableHead>
+                 <TableHead className="text-right">CR</TableHead>
+               </TableRow>
             </TableHeader>
             <TableBody>
               {students.map((s) => (
@@ -114,10 +95,8 @@ export default function HODStudents() {
                     <div className="font-medium">{s.name}</div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">{s.email}</div>
                   </TableCell>
-                  <TableCell className="font-mono text-xs">{s.enrollment_number}</TableCell>
-                  <TableCell>{s.section}</TableCell>
-                  <TableCell>{s.semester_number ?? '-'}</TableCell>
-                  <TableCell>
+                   <TableCell className="font-mono text-xs">{s.enrollment_number}</TableCell>
+                   <TableCell>
                     <Badge variant={s.role === 'CR' ? 'warning' : 'info'}>{s.role}</Badge>
                   </TableCell>
                   <TableCell>

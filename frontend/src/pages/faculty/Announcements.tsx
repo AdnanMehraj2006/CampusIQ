@@ -5,7 +5,7 @@ export default function FacultyAnnouncements() {
     <AnnouncementFeed
       queryKey="faculty-announcements"
       canManage
-      subtitle="Publish notices to your sections, semesters or faculty"
+      subtitle="Publish notices to departments, courses, or faculty"
     />
   )
 }

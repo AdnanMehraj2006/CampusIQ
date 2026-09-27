@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, getApiErrorMessage } from '@/lib/api'
-import { Announcement, Department, Course, Semester } from '@/types'
+import { Announcement, Department, Course } from '@/types'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,8 +16,6 @@ const TARGET_OPTIONS: { value: string; label: string }[] = [
   { value: 'everyone', label: 'Everyone' },
   { value: 'department', label: 'Department' },
   { value: 'course', label: 'Course' },
-  { value: 'semester', label: 'Semester' },
-  { value: 'section', label: 'Section' },
   { value: 'faculty', label: 'Faculty' },
 ]
 
@@ -53,8 +51,6 @@ export function AnnouncementFormModal({ open, onClose, announcement, queryKey }:
     target_type: 'everyone',
     department_id: '',
     course_id: '',
-    semester_id: '',
-    section: '',
     priority: 'normal',
     is_pinned: false,
     expiry_at: '',
@@ -72,8 +68,6 @@ export function AnnouncementFormModal({ open, onClose, announcement, queryKey }:
         target_type: announcement.target_type || 'everyone',
         department_id: announcement.department_id ? String(announcement.department_id) : '',
         course_id: announcement.course_id ? String(announcement.course_id) : '',
-        semester_id: announcement.semester_id ? String(announcement.semester_id) : '',
-        section: announcement.section || '',
         priority: announcement.priority || 'normal',
         is_pinned: !!announcement.is_pinned,
         expiry_at: announcement.expiry_at ? announcement.expiry_at.slice(0, 16) : '',
@@ -86,8 +80,6 @@ export function AnnouncementFormModal({ open, onClose, announcement, queryKey }:
         target_type: (allowed?.targets?.[0] as string) || 'everyone',
         department_id: '',
         course_id: '',
-        semester_id: '',
-        section: '',
         priority: 'normal',
         is_pinned: false,
         expiry_at: '',
@@ -102,11 +94,7 @@ export function AnnouncementFormModal({ open, onClose, announcement, queryKey }:
     enabled: open && !!form.department_id,
   })
 
-  const { data: semesters } = useQuery<Semester[]>({
-    queryKey: ['form-semesters', form.course_id],
-    queryFn: () => api.getSemesters(Number(form.course_id) || undefined),
-    enabled: open && !!form.course_id,
-  })
+
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -119,17 +107,11 @@ export function AnnouncementFormModal({ open, onClose, announcement, queryKey }:
         is_pinned: form.is_pinned,
         expiry_at: form.expiry_at ? new Date(form.expiry_at).toISOString() : undefined,
       }
-      if (['department', 'course', 'semester', 'section', 'faculty'].includes(form.target_type)) {
+      if (['department', 'course', 'faculty'].includes(form.target_type)) {
         payload.department_id = Number(form.department_id) || undefined
       }
-      if (['course', 'semester'].includes(form.target_type)) {
+      if (['course'].includes(form.target_type)) {
         payload.course_id = Number(form.course_id) || undefined
-      }
-      if (form.target_type === 'semester') {
-        payload.semester_id = Number(form.semester_id) || undefined
-      }
-      if (form.target_type === 'section') {
-        payload.section = form.section.trim() || undefined
       }
 
       let result: Announcement
@@ -155,19 +137,14 @@ export function AnnouncementFormModal({ open, onClose, announcement, queryKey }:
   })
 
   const allowedTargets: string[] = allowed?.targets || ['everyone']
-  const facultySections: string[] = allowed?.sections || []
-  const needsDepartment = ['department', 'course', 'semester', 'section', 'faculty'].includes(form.target_type)
-  const needsCourse = ['course', 'semester'].includes(form.target_type)
-  const needsSemester = form.target_type === 'semester'
-  const needsSection = form.target_type === 'section'
+  const needsDepartment = ['department', 'course', 'faculty'].includes(form.target_type)
+  const needsCourse = ['course'].includes(form.target_type)
 
   const canSubmit =
     form.title.trim().length >= 3 &&
     form.content.trim().length > 0 &&
     (!needsDepartment || !!form.department_id) &&
-    (!needsCourse || !!form.course_id) &&
-    (!needsSemester || !!form.semester_id) &&
-    (!needsSection || !!form.section)
+    (!needsCourse || !!form.course_id)
 
   return (
     <Modal
@@ -220,7 +197,7 @@ export function AnnouncementFormModal({ open, onClose, announcement, queryKey }:
           <Field label="Target audience" required>
             <Select
               value={form.target_type}
-              onChange={(e) => setForm({ ...form, target_type: e.target.value, section: '' })}
+               onChange={(e) => setForm({ ...form, target_type: e.target.value })}
             >
               {TARGET_OPTIONS.filter((t) => allowedTargets.includes(t.value)).map((t) => (
                 <option key={t.value} value={t.value}>
@@ -244,7 +221,7 @@ export function AnnouncementFormModal({ open, onClose, announcement, queryKey }:
             <Field label="Department" required>
               <Select
                 value={form.department_id}
-                onChange={(e) => setForm({ ...form, department_id: e.target.value, course_id: '', semester_id: '' })}
+                 onChange={(e) => setForm({ ...form, department_id: e.target.value, course_id: '' })}
               >
                 <option value="">Select department</option>
                 {(departments || []).map((d) => (
@@ -260,7 +237,7 @@ export function AnnouncementFormModal({ open, onClose, announcement, queryKey }:
             <Field label="Course" required>
               <Select
                 value={form.course_id}
-                onChange={(e) => setForm({ ...form, course_id: e.target.value, semester_id: '' })}
+                 onChange={(e) => setForm({ ...form, course_id: e.target.value })}
                 disabled={!form.department_id}
               >
                 <option value="">Select course</option>
@@ -273,39 +250,7 @@ export function AnnouncementFormModal({ open, onClose, announcement, queryKey }:
             </Field>
           )}
 
-          {needsSemester && (
-            <Field label="Semester" required>
-              <Select
-                value={form.semester_id}
-                onChange={(e) => setForm({ ...form, semester_id: e.target.value })}
-                disabled={!form.course_id}
-              >
-                <option value="">Select semester</option>
-                {(semesters || []).map((s) => (
-                  <option key={s.id} value={s.id}>
-                    Semester {s.semester_number}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          )}
 
-          {needsSection && (
-            <Field label="Section" required hint={facultySections.length ? 'Limited to sections you teach' : 'No sections available for your subjects'}>
-              {facultySections.length ? (
-                <Select value={form.section} onChange={(e) => setForm({ ...form, section: e.target.value })}>
-                  <option value="">Select section</option>
-                  {facultySections.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </Select>
-              ) : (
-                <div className="text-sm text-gray-500 dark:text-gray-400">No sections available</div>
-              )}
-            </Field>
-          )}
 
            <Field label="Expiry" hint="Optional - select a date and time">
               <DateTimePicker

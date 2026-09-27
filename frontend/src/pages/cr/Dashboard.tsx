@@ -33,7 +33,7 @@ export default function CRDashboard() {
 
       {overview && (
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-          <h2 className="font-semibold text-gray-900 dark:text-white mb-4">Class Overview: Section {overview.section || 'N/A'}</h2>
+          <h2 className="font-semibold text-gray-900 dark:text-white mb-4">Class Overview</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Overall Attendance</p>

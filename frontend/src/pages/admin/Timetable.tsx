@@ -11,17 +11,15 @@ const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
 export default function AdminTimetable() {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
-  const [entryData, setEntryData] = useState({
-    day: 'Monday',
-    period: 1,
-    start_time: '09:00',
-    end_time: '10:00',
-    subject_id: '',
-    faculty_id: '',
-    classroom_id: '',
-    section: 'A',
-    semester_id: '',
-  })
+    const [entryData, setEntryData] = useState({
+      day: 'Monday',
+      period: 1,
+      start_time: '09:00',
+      end_time: '10:00',
+      subject_id: '',
+      faculty_id: '',
+      classroom_id: '',
+    })
   const [editingEntry, setEditingEntry] = useState<any>(null)
 
   const { data, isLoading } = useQuery({
@@ -78,10 +76,9 @@ export default function AdminTimetable() {
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Day</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Time</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Subject</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Faculty</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Section</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Room</th>
+               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Subject</th>
+               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Faculty</th>
+               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Room</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Actions</th>
             </tr>
           </thead>
@@ -107,10 +104,9 @@ export default function AdminTimetable() {
                     <span className="text-gray-400"> - </span>
                     <span className="text-sm text-gray-900 dark:text-white">{entry.end_time}</span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{entry.subject_name}</td>
-                  <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{entry.faculty_name}</td>
-                  <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{entry.section}</td>
-                  <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{entry.room_number || '-'}</td>
+                   <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{entry.subject_name}</td>
+                   <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{entry.faculty_name}</td>
+                   <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{entry.room_number || '-'}</td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       <button
@@ -209,13 +205,6 @@ function TimetableForm({
                 type="time"
                 value={data.end_time}
                 onChange={(e) => onChange({ ...data, end_time: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Section</label>
-              <Input
-                value={data.section}
-                onChange={(e) => onChange({ ...data, section: e.target.value })}
               />
             </div>
             <div>

@@ -791,7 +791,7 @@ class ApiClient {
     })
   }
 
-  // Courses & semesters & sections (Admin)
+  // Courses (Admin)
   getCourses = async (params: { page?: number; pageSize?: number; q?: string; departmentId?: number } = {}) => {
     const { page = 1, pageSize = 50, q, departmentId } = params
     const parts = [`page=${page}`, `page_size=${pageSize}`]
@@ -820,12 +820,6 @@ class ApiClient {
     })
   }
 
-
-  deleteSection = async (id: number) => {
-    return this.request(`/sections/${id}`, {
-      method: 'DELETE',
-    })
-  }
 
   getAcademicSessions = async () => {
     return this.request<AcademicSession[]>('/academic-sessions')
@@ -910,12 +904,12 @@ class ApiClient {
      return this.request<Array<{id: number, faculty_id: number, department_id: number, course_id: number | null, faculty_name: string}>>(`/class-teachers${parts.length ? `?${parts.join('&')}` : ''}`)
    }
 
-   createClassTeacher = async (data: { faculty_id: number, department_id: number, course_id?: number }) => {
-     return this.request<ClassTeacher>('/class-teachers', {
-       method: 'POST',
-       body: JSON.stringify(data),
-     })
-   }
+    createClassTeacher = async (data: { faculty_id: number, department_id: number, course_id?: number }) => {
+      return this.request<{id: number, faculty_id: number, department_id: number, course_id: number | null}>('/class-teachers', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+    }
 
   deleteClassTeacher = async (id: number) => {
     return this.request(`/class-teachers/${id}`, {

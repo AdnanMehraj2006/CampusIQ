@@ -163,7 +163,7 @@ function RequestFormModal({
       open={open}
       onClose={onClose}
       title="New class request"
-      description="Your section and department are attached automatically"
+      description="Your department is attached automatically"
       footer={
         <>
           <Button variant="outline" onClick={onClose} disabled={submitting}>

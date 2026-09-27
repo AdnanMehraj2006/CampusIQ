@@ -226,7 +226,6 @@ function AssignmentForm({
     description: '',
     instructions: '',
     subject_id: '',
-    section: '',
     deadline: '',
     max_marks: 100,
     allow_late: false,
@@ -273,13 +272,6 @@ function AssignmentForm({
                 >
                   <option value="">Select subject</option>
                 </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Section</label>
-                <Input
-                  value={data.section}
-                  onChange={(e) => setData({ ...data, section: e.target.value })}
-                />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">

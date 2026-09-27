@@ -6,33 +6,20 @@ import { LoadingState, EmptyState, ErrorState } from '@/components/ui/states'
 import { Calendar } from 'lucide-react'
 
 export default function CRTimetable() {
-  const { data: dashboard, isLoading: dashLoading } = useQuery({
-    queryKey: ['dashboard', 'cr'],
-    queryFn: () => api.getDashboard('cr'),
+  const { data: timetable, isLoading, isError } = useQuery({
+    queryKey: ['cr-timetable'],
+    queryFn: () => api.getTimetable(),
   })
 
-  const section = (dashboard as { section?: string } | undefined)?.section
-
-  const { data: timetable, isLoading, isError, refetch } = useQuery({
-    queryKey: ['cr-timetable', section],
-    queryFn: () => api.getTimetableBySection(section as string),
-    enabled: !!section,
-  })
-
-  if (dashLoading || isLoading) return <LoadingState message="Loading timetable..." className="pt-20" />
+  if (isLoading) return <LoadingState message="Loading timetable..." className="pt-20" />
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Class Timetable"
-        subtitle={section ? `Weekly schedule for Section ${section}` : 'Your class schedule'}
-      />
-      {!section ? (
-        <EmptyState icon={Calendar} title="No section linked" message="Your profile has no section assigned." />
-      ) : isError ? (
-        <ErrorState message="Failed to load timetable" onRetry={refetch} />
+      <PageHeader title="Class Timetable" subtitle="Your class schedule" />
+      {isError ? (
+        <ErrorState message="Failed to load timetable" />
       ) : !timetable || timetable.length === 0 ? (
-        <EmptyState icon={Calendar} title="No classes scheduled" message="The timetable for your section is empty." />
+        <EmptyState icon={Calendar} title="No classes scheduled" message="There are no classes in your timetable." />
       ) : (
         <TimetableGrid entries={timetable} />
       )}
