@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = '002609231430'
+revision: str = '20260923_1430_xxxx_contextual_sections'
 down_revision: Union[str, Sequence[str], None] = 'f4a1c7e9b3d2'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

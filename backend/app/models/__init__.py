@@ -65,8 +65,6 @@ __all__ = [
     "ProjectMilestone",
     "ProjectStatus",
     "RefreshToken",
-    "Section",
-    "Semester",
     "Student",
     "Subject",
     "SubjectAssignment",
